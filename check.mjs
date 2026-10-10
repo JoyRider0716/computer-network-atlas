@@ -84,6 +84,7 @@ for(const p of Object.values(ATLAS)){
  const rel=relationDiagram(p);assert.ok(!/NaN|undefined/.test(rel));for(const l of p.links)assert.ok(rel.includes('data-related="'+l.id+'"'));
 }
 for(const file of ['dist/index.html','dist/app.js','dist/learning.js','dist/curriculum.js'])assert.ok(!/面试|interview|data-view="compare"/.test(readFileSync(file,'utf8')),file);
+execFileSync(process.execPath,['tests/scene-layout.mjs'],{stdio:'inherit'});
 execFileSync(process.execPath,['tests/ui-smoke.mjs'],{stdio:'inherit'});
 execFileSync(process.execPath,['tests/ui-smoke.mjs'],{stdio:'inherit',env:{...process.env,ATLAS_LANGUAGE:'en'}});
 execFileSync(process.execPath,['tests/locales.mjs'],{stdio:'inherit'});

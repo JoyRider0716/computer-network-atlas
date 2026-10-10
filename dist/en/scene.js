@@ -40,9 +40,9 @@ export class NetworkScene {
   this.canvas.addEventListener('wheel',e=>{e.preventDefault();this.zoom=Math.max(.68,Math.min(1.65,this.zoom*Math.exp(e.deltaY*.001)));},{passive:false});
   this.canvas.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-','Home'].includes(e.key))e.preventDefault();if(e.key==='ArrowLeft')this.angle-=.12;if(e.key==='ArrowRight')this.angle+=.12;if(e.key==='ArrowUp')this.pitch=Math.min(.75,this.pitch+.06);if(e.key==='ArrowDown')this.pitch=Math.max(.08,this.pitch-.06);if(e.key==='+')this.zoom=Math.max(.68,this.zoom*.9);if(e.key==='-')this.zoom=Math.min(1.65,this.zoom/ .9);if(e.key==='Home')this.reset();});
  }
- resize(){const rect=this.canvas.parentElement.getBoundingClientRect();this.width=rect.width;this.height=rect.height;const dpr=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.round(this.width*dpr);this.canvas.height=Math.round(this.height*dpr);this.dpr=dpr;this.measureLabels();this.packetLabelSize=null;}
+ resize(){const rect=this.canvas.parentElement.getBoundingClientRect();this.width=rect.width;this.height=rect.height;const dpr=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.round(this.width*dpr);this.canvas.height=Math.round(this.height*dpr);this.dpr=dpr;this.measureLabels();this.canvas.parentElement.classList.toggle('scene-labels-below',this.width<2*Math.max(...this.labelEls.filter(a=>a.layer!==undefined).map(a=>a.width),0)+220);this.packetLabelSize=null;}
  reset(){this.angle=.13;this.pitch=.34;this.zoom=1;this.auto=false;}
- setLayers(layers){this.layers=layers;this.selected=0;this.makeLabels();}
+ setLayers(layers){this.layers=layers;this.selected=0;this.makeLabels();this.resize();}
  setSelected(index){this.selected=index;for(const a of this.labelEls)if(a.layer!==undefined)a.el.classList.toggle('active',a.layer===index);}
  layerY(i){const n=this.layers.length;return this.spread?.82+(n-1-i)*(n===7?.47:.9):.9+(n-1-i)*.24;}
  makeLabels(){this.labelsRoot.replaceChildren();this.labelEls=[];this.labelLines=document.createElementNS('http://www.w3.org/2000/svg','svg');this.labelLines.classList.add('label-connectors');this.labelLines.setAttribute('aria-hidden','true');this.labelsRoot.appendChild(this.labelLines);for(let h=0;h<2;h++){
@@ -56,13 +56,11 @@ export class NetworkScene {
   this.labelRects=[];
   const margin=12,heading=this.canvas.parentElement.querySelector('.scene-heading');
   const headingBottom=heading?heading.offsetTop+heading.offsetHeight:110;
-  this.labelTop=headingBottom+12;
+  this.labelTop=this.modelBand?this.modelBand.bottom+12:headingBottom+12;
   const router=this.labelEls.find(a=>a.router);
   const groups=this.hosts.map((x,host)=>({host,x:this.project([x,1.7,0]).x,labels:this.labelEls.filter(a=>a.host===host&&a.layer!==undefined&&(this.spread||a.layer===this.selected))})).sort((a,b)=>a.x-b.x);
   const labelWidth=Math.max(...this.labelEls.filter(a=>a.layer!==undefined).map(a=>a.width),1);
-  const columns=groups.map((g,i)=>Math.max(margin+labelWidth/2,Math.min(this.width-margin-labelWidth/2,g.x+(i?86:-86))));
-  const separation=labelWidth+24;
-  if(columns[1]-columns[0]<separation){const middle=Math.max(margin+labelWidth+12,Math.min(this.width-margin-labelWidth-12,(columns[0]+columns[1])/2));columns[0]=middle-separation/2;columns[1]=middle+separation/2;}
+  const columns=[margin+labelWidth/2,this.width-margin-labelWidth/2];
   let lowest=0;
   for(const a of this.labelEls)if(a.layer!==undefined){const visible=this.spread||a.layer===this.selected;a.el.style.display=visible?'':'none';a.line.style.display=visible?'':'none';}
   groups.forEach((g,column)=>{
@@ -70,10 +68,10 @@ export class NetworkScene {
    const entries=g.labels.map(a=>({...a,anchor:this.project([this.hosts[a.host],this.layerY(a.layer)+.02,.78])})).sort((a,b)=>a.anchor.y-b.anchor.y);
    if(!entries.length)return;
    const height=Math.max(...entries.map(a=>a.height)),gap=height+7;
-   const top=headingBottom+host.height+28+height/2,bottom=this.height-88-router.height-18-height/2;
-   const ys=entries.map(a=>a.anchor.y);
+   const top=(this.modelBand?this.modelBand.bottom:headingBottom)+host.height+28+height/2,bottom=this.height-88-router.height-18-height/2;
+   const ys=entries.map((a,i)=>this.modelBand?top+i*gap:a.anchor.y);
    for(let i=1;i<ys.length;i++)ys[i]=Math.max(ys[i],ys[i-1]+gap);
-   const shift=entries.reduce((sum,a,i)=>sum+a.anchor.y-ys[i],0)/entries.length;
+   const shift=this.modelBand?0:entries.reduce((sum,a,i)=>sum+a.anchor.y-ys[i],0)/entries.length;
    const offset=Math.max(top-ys[0],Math.min(bottom-ys.at(-1),shift));
    entries.forEach((a,i)=>{
     const x=columns[column],y=ys[i]+offset;
@@ -88,7 +86,7 @@ export class NetworkScene {
     lowest=Math.max(lowest,y+a.height/2);
    });
    const hostAnchor=this.project([this.hosts[g.host],this.layerY(0)+.63,0]);
-   const hostY=Math.max(headingBottom+host.height/2+10,Math.min(hostAnchor.y,ys[0]+offset-height/2-host.height/2-12));
+   const hostY=Math.max((this.modelBand?this.modelBand.bottom:headingBottom)+host.height/2+10,Math.min(hostAnchor.y,ys[0]+offset-height/2-host.height/2-12));
    host.el.style.transform=`translate(${columns[column]}px,${hostY}px) translate(-50%,-50%)`;
    host.el.style.display=hostAnchor.visible?'':'none';
    if(hostAnchor.visible)this.labelRects.push({x:columns[column]-host.width/2,y:hostY-host.height/2,width:host.width,height:host.height});
@@ -117,7 +115,39 @@ export class NetworkScene {
   const position=positions[0]||desired;
   label.style.transform=`translate(${position.x}px,${position.y}px) translate(-50%,-50%)`;
  }
- camera(){const aspect=this.width/this.height;const radius=Math.max(12.7,13/aspect)*this.zoom;const target=[0,1.7,0];this.eye=[Math.sin(this.angle)*Math.cos(this.pitch)*radius,target[1]+Math.sin(this.pitch)*radius,Math.cos(this.angle)*Math.cos(this.pitch)*radius];this.target=target;this.vp=multiply(perspective(Math.PI/4,aspect,.1,100),lookAt(this.eye,target));}
+ camera(){const aspect=this.width/this.height;const radius=Math.max(12.7,13/aspect)*this.zoom;const target=[0,1.7,0];this.eye=[Math.sin(this.angle)*Math.cos(this.pitch)*radius,target[1]+Math.sin(this.pitch)*radius,Math.cos(this.angle)*Math.cos(this.pitch)*radius];this.target=target;this.vp=multiply(perspective(Math.PI/4,aspect,.1,100),lookAt(this.eye,target));this.fitModelBetweenLabels();}
+ fitModelBetweenLabels(){
+  this.projectionFit={scale:1,shift:0,shiftY:0};
+  this.modelBand=null;
+  const labelWidth=Math.max(...this.labelEls.filter(a=>a.layer!==undefined).map(a=>a.width),0);
+  if(!labelWidth||!this.layers.length)return;
+  const narrow=this.width<2*labelWidth+220;
+  const inset=narrow?24:labelWidth+24,available=Math.max(1,this.width-2*inset);
+  const points=[];
+  // Fit the blocks between desktop labels; keep the whole model above narrow-screen labels.
+  const boxes=this.boxes();
+  if(this.packet)boxes.pop(); // Moving packets must not change camera framing.
+  for(const box of boxes.filter(b=>narrow?b.layer!==null||b.pos[1]<.75:b.layer!==null)){
+   for(const x of [-.5,.5])for(const y of [-.5,.5])for(const z of [-.5,.5])points.push(this.project(box.pos.map((v,i)=>v+[x,y,z][i]*box.size[i])));
+  }
+  const left=Math.min(...points.map(p=>p.x)),right=Math.max(...points.map(p=>p.x));
+  let scale=Math.min(1,available/Math.max(1,right-left)),shiftY=0;
+  if(narrow){
+   const heading=this.canvas.parentElement.querySelector('.scene-heading');
+   const top=(heading?heading.offsetTop+heading.offsetHeight:110)+18;
+   this.modelBand={top,bottom:top+190};
+   const modelTop=Math.min(...points.map(p=>p.y)),modelBottom=Math.max(...points.map(p=>p.y));
+   scale=Math.min(scale,190/Math.max(1,modelBottom-modelTop));
+   shiftY=1-(this.modelBand.top+this.modelBand.bottom)/this.height-scale*(1-(modelTop+modelBottom)/this.height);
+  }
+  const center=(left+right)/2,shift=scale*(1-2*center/this.width);
+  this.projectionFit={scale,shift,shiftY};
+  for(let col=0;col<4;col++){
+   const offset=col*4;
+   this.vp[offset]=this.vp[offset]*scale+this.vp[offset+3]*shift;
+   this.vp[offset+1]=this.vp[offset+1]*scale+this.vp[offset+3]*shiftY;
+  }
+ }
  project(p){const m=this.vp;const r=[0,0,0,0];for(let row=0;row<4;row++)r[row]=m[row]*p[0]+m[4+row]*p[1]+m[8+row]*p[2]+m[12+row];return {x:(r[0]/r[3]+1)*this.width/2,y:(1-r[1]/r[3])*this.height/2,z:r[2]/r[3],visible:r[3]>0};}
  boxes(){const out=[];const add=(pos,size,color,layer=null)=>out.push({pos,size,color:typeof color==='string'?rgb(color):color,layer});
   for(const x of this.hosts){add([x,-.16,.25],[3.05,.16,2.95],'#244253');add([x,-.045,.25],[2.88,.045,2.78],'#294e5e');add([x,.25,1.28],[1.6,.44,.65],'#193641');add([x,.49,1.26],[1.55,.035,.60],'#51777a');
@@ -142,6 +172,6 @@ export class NetworkScene {
   this.renderPacketLabel();
  }
  renderFallback(){const faces=[];for(const b of this.objects)for(const face of boxFaces){const verts=face.p.map(p=>vec.add(b.pos,p.map((v,i)=>v*b.size[i])));const center=verts.reduce((a,p)=>vec.add(a,vec.scale(p,.25)),[0,0,0]);if(vec.dot(face.n,vec.sub(this.eye,center))<=0)continue;faces.push({points:verts.map(p=>this.project(p)),depth:vec.dot(vec.sub(center,this.eye),vec.norm(vec.sub(this.target,this.eye))),color:b.color.map(v=>Math.round(v*(.53+.47*Math.max(vec.dot(face.n,vec.norm([-.4,.9,.5])),0))*255))});}faces.sort((a,b)=>b.depth-a.depth);for(const f of faces){const c=this.ctx;c.beginPath();f.points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.closePath();c.fillStyle=`rgb(${f.color.join(',')})`;c.fill();}}
- pick(clientX,clientY){const rect=this.canvas.getBoundingClientRect(),nx=(clientX-rect.left)/this.width*2-1,ny=1-(clientY-rect.top)/this.height*2;const forward=vec.norm(vec.sub(this.target,this.eye)),right=vec.norm(vec.cross(forward,[0,1,0])),up=vec.cross(right,forward),f=Math.tan(Math.PI/8);const dir=vec.norm(vec.add(forward,vec.add(vec.scale(right,nx*f*this.width/this.height),vec.scale(up,ny*f))));let hit=null,best=Infinity;for(const box of this.objects){if(box.layer===null)continue;const t=rayBox(this.eye,dir,box.pos,box.size);if(t!==null&&t<best){best=t;hit=box.layer;}}if(hit!==null)this.onSelect(hit);}
+ pick(clientX,clientY){const rect=this.canvas.getBoundingClientRect(),nx=(clientX-rect.left)/this.width*2-1,ny=1-(clientY-rect.top)/this.height*2;const {scale,shift,shiftY}=this.projectionFit||{scale:1,shift:0,shiftY:0},px=(nx-shift)/scale,py=(ny-shiftY)/scale;const forward=vec.norm(vec.sub(this.target,this.eye)),right=vec.norm(vec.cross(forward,[0,1,0])),up=vec.cross(right,forward),f=Math.tan(Math.PI/8);const dir=vec.norm(vec.add(forward,vec.add(vec.scale(right,px*f*this.width/this.height),vec.scale(up,py*f))));let hit=null,best=Infinity;for(const box of this.objects){if(box.layer===null)continue;const t=rayBox(this.eye,dir,box.pos,box.size);if(t!==null&&t<best){best=t;hit=box.layer;}}if(hit!==null)this.onSelect(hit);}
  frame(t){const dt=Math.min(t-this.last,60);this.last=t;if(this.auto&&!document.hidden)this.angle+=dt*.00009;if(!document.hidden)this.render();requestAnimationFrame(n=>this.frame(n));}
 }

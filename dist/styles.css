@@ -68,3 +68,7 @@ html[lang=en] .relation-caption{padding:0 16px;line-height:1.6}
  html[lang=en] .scene-heading h2{max-width:220px}
 }
 @media(max-width:360px){html[lang=en] .layer-label{width:122px;font-size:9px}}
+
+/* On narrow screens, show the model above the two outer label columns. */
+.scene.scene-labels-below{height:780px;min-height:780px}
+html[lang=en] .scene.scene-labels-below{height:880px;min-height:880px}
