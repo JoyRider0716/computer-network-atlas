@@ -11,6 +11,8 @@ import {LearningHub} from './dist/learning.js';
 import {ATLAS,protocolIds,PROTOCOL_LAYER_KEYS} from './dist/protocol-data.js';
 import {workDiagram,relationDiagram} from './dist/protocols.js';
 
+execFileSync('python',['scripts/build_locales.py','--check'],{stdio:'inherit'});
+
 for(const file of readdirSync('dist').filter(f=>f.endsWith('.js')).map(f=>'dist/'+f)){
  execFileSync(process.execPath,['--check',file]);
  const code=readFileSync(file,'utf8');for(const m of code.matchAll(/from\s+['"]\.\/([^'"]+)['"]/g))assert.ok(existsSync('dist/'+m[1]),'Missing module: '+m[1]);
@@ -83,4 +85,6 @@ for(const p of Object.values(ATLAS)){
 }
 for(const file of ['dist/index.html','dist/app.js','dist/learning.js','dist/curriculum.js'])assert.ok(!/面试|interview|data-view="compare"/.test(readFileSync(file,'utf8')),file);
 execFileSync(process.execPath,['tests/ui-smoke.mjs'],{stdio:'inherit'});
+execFileSync(process.execPath,['tests/ui-smoke.mjs'],{stdio:'inherit',env:{...process.env,ATLAS_LANGUAGE:'en'}});
+execFileSync(process.execPath,['tests/locales.mjs'],{stdio:'inherit'});
 console.log(`PASS: 11 layers, ${Object.keys(PROTOCOLS).length} protocol/technology entries, ${Object.values(CHAPTERS).reduce((n,c)=>n+c.lessons.length,0)} lessons, ${Object.keys(ATLAS).length} illustrated entries, ${CASES.length} cases; field layouts, calculator boundaries, flows and 3D math.`);

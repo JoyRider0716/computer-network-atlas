@@ -24,6 +24,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Generate the English site
+        run: python3 scripts/build_locales.py
+
       - name: Check source and teaching calculations
         run: node check.mjs
 

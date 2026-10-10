@@ -3,7 +3,7 @@
   "version": "3.0.0",
   "private": true,
   "type": "module",
-  "description": "Interactive guide to OSI and TCP/IP networking",
+  "description": "Bilingual interactive guide to OSI and TCP/IP networking",
   "scripts": {
     "check": "node check.mjs"
   }

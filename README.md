@@ -1,5 +1,7 @@
 # 网络结构工坊 · Network Atlas
 
+[中文](README.md) · [English](README.en.md)
+
 ## 项目用途
 
 一个用于学习计算机网络的交互式网站。通过可旋转的双主机与路由器模型，查看 OSI 七层和 TCP/IP 四层的职责，观察数据封装、逐跳转发与解封装过程。
@@ -49,6 +51,7 @@ npm run check
 | `dist/learning.js` | 原理、字段、计算与排查栏目的交互 |
 | `dist/styles.css`、`dist/study.css`、`dist/protocols.css` | 主界面、深入学习与协议页面的样式 |
 | `check.mjs`、`tests/` | 数据关联、计算边界和交互检查 |
+| `scripts/build_locales.py`、`locales/en.json` | 英文页面生成与翻译映射 |
 | `scripts/package_source.py` | 生成源码 ZIP |
 | `.github/workflows/deploy-pages.yml` | 检查源码、打包并部署 `dist/` 到 GitHub Pages |
 | `docs/` | 部署说明与教学内容目录 |

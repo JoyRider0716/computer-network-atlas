@@ -6,8 +6,8 @@ from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-DIRECTORIES = ("dist", "scripts", "docs", "tests", ".github")
-FILES = ("README.md", "package.json", "check.mjs", ".gitignore")
+DIRECTORIES = ("dist", "scripts", "docs", "tests", "locales", ".github")
+FILES = ("README.md", "README.en.md", "package.json", "check.mjs", ".gitignore")
 
 def source_files():
     for name in FILES:
