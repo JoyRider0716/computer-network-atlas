@@ -53,3 +53,18 @@ html[lang=en] .diagram-caption{font-size:11px}
 @media(max-width:640px){.sidebar{min-width:0;width:100%}.layer-list{max-width:100%}.layer-item{flex-shrink:0}html[lang=en] .layer-item{min-width:118px}html[lang=en] .layer-item b{white-space:normal}}
 @media(max-width:640px){.sidebar-title{display:block}.sidebar-title .eyebrow{display:none}.sidebar-title h1{font-size:17px;margin:0 0 6px}.sidebar-title p{font-size:11px;margin-bottom:12px}}
 @media(max-width:640px){.layer-item{width:auto;flex:0 0 auto}.journey-top{flex-wrap:wrap}.journey-options{margin-left:auto}}
+
+/* English layer names need space for full terms in both model views. */
+html[lang=en] .scene{min-height:640px}
+html[lang=en] .layer-label{width:150px;min-height:36px;font-size:10px;line-height:14px;white-space:normal;gap:6px;padding:5px 8px}
+html[lang=en] .layer-label .layer-name{min-width:0;overflow-wrap:normal}
+html[lang=en] .scene-heading{max-width:calc(100% - 52px)}
+html[lang=en] .scene-heading h2{max-width:430px}
+html[lang=en] .scene-tip{max-width:145px;line-height:1.6}
+html[lang=en] .relation-caption{padding:0 16px;line-height:1.6}
+@media(max-width:640px){
+ html[lang=en] .scene{height:670px;min-height:670px}
+ html[lang=en] .layer-label{width:132px;min-height:36px;line-height:13px}
+ html[lang=en] .scene-heading h2{max-width:220px}
+}
+@media(max-width:360px){html[lang=en] .layer-label{width:122px;font-size:9px}}

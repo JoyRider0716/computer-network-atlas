@@ -84,7 +84,7 @@ click('[data-atlas-model="tcpip"]');assert.equal(doc.querySelectorAll('[data-atl
 click('[data-protocol="bgp"]');assert.ok(el('protocol-detail').textContent.includes('TCP 179'));assert.ok(el('protocol-detail').textContent.includes(text('应用层','application-layer')));
 const search=el('protocol-search');search.value=text('邮件','mail');search.dispatch('input');assert.ok(doc.querySelectorAll('[data-protocol]').length>=3);search.value=text('找不到的协议','no-such-protocol');search.dispatch('input');assert.equal(doc.querySelectorAll('[data-protocol]').length,0);
 search.value='';search.dispatch('input');click('[data-atlas-layer="interface"]');click('[data-protocol="stp"]');click('[data-protocol-step="2"]');assert.ok(doc.querySelector('.protocol-step-detail').textContent.includes(text('冗余','redundant')));
-el('protocol-back-3d').click();assert.equal(el('explore-screen').hidden,false);assert.equal(el('protocol-screen').hidden,true);assert.ok(el('inspector-content').textContent.includes(text('网络接口层','Network access layer')));
+el('protocol-back-3d').click();assert.equal(el('explore-screen').hidden,false);assert.equal(el('protocol-screen').hidden,true);assert.ok(el('inspector-content').textContent.includes(text('网络接口层','Network interface layer')));
 click('[data-open-protocol="arp"]');assert.equal(el('protocol-screen').hidden,false);assert.ok(el('protocol-title').textContent.includes('ARP'));
 el('open-learning').click();assert.equal(el('explore-screen').hidden,false);assert.equal(el('protocol-screen').hidden,true);
 // Exercise every entry in both models; the selected diagram step must match its text.

@@ -14,7 +14,7 @@ A 3D learning website for computer networks, organized as layer â†’ definition â
 | Data link | Ethernet, Wi-Fi, ARP, 802.1Q VLAN, STP/RSTP, PPP | MAC learning, wireless access, next-hop resolution, tags, loop prevention and negotiation |
 | Physical | PHY, media and delay | Coding/modulation, synchronization, transmission and propagation |
 
-There are 32 entries and 133 selectable steps. Each also has a navigable relationship diagram for transport, format or functional cooperation. Types distinguish protocols, families, formats, mechanisms, link technologies and physical standards.
+There are 32 entries and 134 selectable steps. Each also has a navigable relationship diagram for transport, format or functional cooperation. Types distinguish protocols, families, formats, mechanisms, link technologies and physical standards.
 
 The TCP/IP application catalogue combines OSI application, presentation and session functions; network access combines link and physical functions. There is no separate model-comparison screen.
 
