@@ -1,104 +1,47 @@
-# GitHub Pages部署指南
+# GitHub Pages 部署
 
-这是一套独立的静态网站，源代码、教学数据、3D渲染器、交互、测试和部署配置都已提供。无需ChatGPT、API密钥、数据库或付费模型接口。
+网站的运行文件位于 `dist/`，部署工作流位于 `.github/workflows/deploy-pages.yml`。工作流会检查源码、生成下载包，再将 `dist/` 发布到 GitHub Pages。
 
-## 一、解压后应该看到什么
+## 本地运行
 
-打开`network-atlas/`目录。该目录中应同时存在`README.md`、`package.json`、`dist/`、`scripts/`和`.github/`。
-
-请上传这个目录里面的内容作为仓库根目录。不要再嵌套一层`network-atlas/`，也不要只上传`dist/`而漏掉自动部署工作流。
-
-`.github/`是隐藏目录，但它包含部署工作流，必须保留。源码包不包含任何当前在线网站的身份配置或凭据。
-
-## 二、先在本地打开网站
-
-安装Python 3后，在上述目录运行：
+在仓库根目录运行：
 
 ```bash
-python scripts/build_locales.py
 python scripts/package_source.py --output dist/network-atlas-source.zip
 python -m http.server 8000 --directory dist
 ```
 
-Windows如果`python`不可用，可以把它换成`py`。
+打开 <http://localhost:8000>。Windows 可用 `py` 代替 `python`。源码打包供页面下载按钮使用；仅浏览网站时可省略第一条命令。
 
-浏览器打开`http://localhost:8000`（中文）或`http://localhost:8000/en/`（英文）。顶部按钮可切换语言。不要直接双击`index.html`，因为浏览器对本地文件的ES模块加载有限制。
+安装 Node.js 18 或更高版本后，可运行 `npm run check`。项目无需安装 npm 依赖。
 
-如果安装了Node.js 18或更高版本，可以运行：
+## 启用部署
 
-```bash
-node check.mjs
-```
+1. 将项目放入自己的 GitHub 仓库。若使用源码 ZIP，解压后将 `network-atlas/` 内的内容作为仓库根目录，保留 `.github/`。
+2. 在仓库的 **Settings → Pages → Build and deployment → Source** 中选择 **GitHub Actions**。
+3. 推送到 `main`，或在 **Actions** 中选择 **Deploy Network Atlas to GitHub Pages**，点击 **Run workflow**。
+4. 部署成功后，从部署任务或 **Settings → Pages** 打开网站地址。
 
-没有第三方npm依赖，不需要`npm install`。
+项目仓库的 Pages 地址通常为 `https://用户名.github.io/仓库名/`。页面资源使用相对路径，可直接在仓库子路径下运行。私有仓库能否使用 Pages 取决于账号方案与组织策略。
 
-## 三、上传到自己的GitHub仓库
+## 更新网站
 
-在GitHub新建一个仓库，例如`network-atlas`。使用GitHub Free时，普通GitHub Pages部署可选公开仓库；私有仓库Pages支持取决于账号方案与组织策略。
+修改后提交并推送到 `main`，工作流会更新网站及源码下载包。若使用其他发布分支，请同步修改工作流中的 `on.push.branches`。
 
-可用GitHub Desktop将解压目录作为本地仓库，再发布到自己的账号。也可在仓库根目录用Git命令：
+教学内容与模块的位置见 [README](../README.md#项目架构)，内容目录见 [CONTENT_MAP.md](CONTENT_MAP.md)。
 
-```bash
-git init
-git add .
-git commit -m "Add Network Atlas learning website"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/network-atlas.git
-git push -u origin main
-```
+## 排查部署问题
 
-把`YOUR_USERNAME`和仓库名替换成自己的信息。如果仓库已经初始化，请按实际仓库状态提交，不要再次盲目添加同名remote。
-
-## 四、启用GitHub Pages
-
-1. 打开仓库的 **Settings → Pages**。
-2. 在 **Build and deployment → Source** 中选择 **GitHub Actions**。
-3. 打开 **Actions**，找到 **Deploy Network Atlas to GitHub Pages**。
-4. 首次上传可能早于Pages启用。此时点击 **Run workflow** 手动运行一次。
-5. 等待检查、源码打包、上传和部署完成。
-6. 从部署任务或Settings → Pages打开实际网站地址。
-
-普通项目仓库地址通常为：
-
-```text
-https://YOUR_USERNAME.github.io/network-atlas/
-```
-
-具体请以GitHub返回的地址为准。网站使用相对资源路径，兼容仓库子路径，不需要改写为根路径`/app.js`等。
-
-## 五、后续修改怎样发布
-
-修改源文件后，提交并推送到`main`即可自动部署。
-
-- 修改定义和协议：`dist/content.js`。
-- 修改原理、排查案例：`dist/curriculum.js`。
-- 修改图文协议、流程节点和协作关系：`dist/protocol-data.js`。
-- 修改协议界面与SVG绘图：`dist/protocols.js`。
-- 修改报文字段：`dist/packets.js`。
-- 修改计算逻辑：`dist/calculators.js`。
-- 修改进阶交互：`dist/learning.js`。
-- 修改3D模型：`dist/scene.js`。
-- 修改布局：`dist/styles.css`、`dist/study.css`和`dist/protocols.css`。
-
-英文翻译维护在`locales/en.json`。修改中文文案后补齐英文翻译，运行`python scripts/build_locales.py`，不要直接编辑`dist/en/`生成文件。工作流会生成英文页面、检查两种语言，再重新生成完整源码下载包，因此在线下载内容会随推送更新。
-
-## 六、常见部署问题
-
-| 问题 | 优先检查 |
+| 现象 | 检查项 |
 | --- | --- |
-| Actions没有任务 | `.github/workflows/deploy-pages.yml`是否在仓库根目录对应位置；默认推送分支是否为`main` |
-| configure-pages失败 | Settings → Pages是否已经选择GitHub Actions；账号或组织是否允许Pages |
-| 部署权限错误 | 仓库Actions策略是否允许所需动作，以及`pages: write`、`id-token: write`权限 |
-| 网站404 | 访问的是项目Pages地址而非仓库源码地址；部署任务是否成功 |
-| 页面打开但脚本404 | 资源是否与`index.html`一起在`dist/`中；是否保留相对路径 |
-| 源码下载404 | 是否运行源码打包步骤；是否从Actions部署了完整`dist/` |
-| 修改后还是旧页面 | 确认新提交的部署成功，再刷新或清理浏览器缓存 |
+| 没有运行部署任务 | 工作流路径是否正确，推送分支是否与 `on.push.branches` 一致 |
+| `configure-pages` 失败 | Pages 是否选择 GitHub Actions，账号或组织是否允许 Pages |
+| 权限错误 | 仓库 Actions 策略及工作流中的 `pages: write`、`id-token: write` 权限 |
+| 网站返回 404 | 部署任务是否成功，访问的是否为 Pages 地址 |
+| 脚本或样式返回 404 | 文件是否完整放在 `dist/`，页面中是否保留相对路径 |
+| 源码下载返回 404 | 源码打包步骤是否成功，ZIP 是否包含在部署文件中 |
+| 页面仍是旧内容 | 最新提交是否部署成功；刷新页面并检查浏览器缓存 |
 
-参考GitHub官方文档：
+自动检查覆盖数据、运算和交互逻辑。发布前还应在桌面和手机浏览器中检查模型标签、图文布局、导航及源码下载。
 
-- https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages
-- https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site
-
-## 七、验证范围
-
-自动检查验证教学数据关联、协议字段宽度、网络计算边界、3D点击数学和封装流程。它不代替真实浏览器中的视觉与交互测试。正式用于课堂或考试复习时，可先用浏览器按README的人工检查清单走一遍。
+参考：[GitHub Pages 自定义工作流](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)。
