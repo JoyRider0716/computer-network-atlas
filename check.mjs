@@ -41,6 +41,7 @@ for(const ls of [OSI,TCPIP])for(const scenario of ['http','dns']){
 }
 assert.equal(LABS.handshake.steps.length,3);assert.equal(LABS.close.steps.length,4);
 assert.deepEqual(LABS.handshake.steps.at(-1).states,['ESTABLISHED','ESTABLISHED']);
+assert.deepEqual(LABS.close.steps[2].states,['TIME-WAIT','LAST-ACK']);
 assert.deepEqual(LABS.close.steps.at(-1).states,['TIME-WAIT','CLOSED']);
 assert.ok(LABS.handshake.steps[1].wire.includes('ack=101'));
 assert.ok(LABS.handshake.steps[2].wire.includes('ack=501'));
@@ -55,7 +56,10 @@ assert.throws(()=>subnet('256.1.2.3',24));assert.throws(()=>subnet('1.2.3',24));
 assert.equal(tcpAck(1001,500).ack,1501);assert.equal(tcpAck(100,0,true).ack,101);assert.equal(tcpAck(4294967295,1).ack,0);assert.equal(tcpAck(1001,500,false,true).ack,1502);assert.throws(()=>tcpAck(-1,1));
 const d=delays(1500,100,1000,200000000);assert.ok(Math.abs(d.transmission-.12)<1e-9);assert.equal(d.propagation,5);assert.equal(d.bdp,125000);assert.throws(()=>delays(1500,0,1,2e8));assert.throws(()=>delays(1500,100,1,0));
 assert.equal(mss(1500,4,20).mss,1460);assert.equal(mss(1500,6,20).mss,1440);assert.equal(mss(1500,4,32).mss,1448);assert.throws(()=>mss(1500,4,21));
+assert.equal(mss(65535,4,20).mss,65495);assert.equal(mss(65575,6,20).mss,65515);
+assert.throws(()=>mss(65536,4,20));assert.throws(()=>mss(65576,6,20));assert.throws(()=>mss(1279,6,20));
 const fragments=fragment(4000,1500,20);assert.deepEqual(fragments.map(f=>f.payload),[1480,1480,1040]);assert.deepEqual(fragments.map(f=>f.offset),[0,185,370]);assert.deepEqual(fragments.map(f=>f.mf),[1,1,0]);assert.equal(fragment(5,1500).length,1);assert.throws(()=>fragment(4000,20));
+assert.throws(()=>fragment(4000,67));
 for(const mtu of [68,576,1280,1500]){const parts=fragment(65515,mtu);assert.equal(parts.reduce((sum,f)=>sum+f.payload,0),65515);for(const p of parts){assert.ok(p.total<=mtu);if(p.mf)assert.equal(p.payload%8,0);assert.ok(Number.isInteger(p.offset));}}
 const hub=Object.create(LearningHub.prototype);Object.assign(hub,{layerId:'application',packet:'tcp',field:'tcp-seq',open:new Map()});
 for(const key of Object.keys(CHAPTERS)){hub.layerId=key;assert.ok(hub.theory().includes(CHAPTERS[key].lessons[0].title));}

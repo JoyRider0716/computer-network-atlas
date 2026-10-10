@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0c1926">
-  <meta name="description" content="面向大学考试与求职的3D网络学习网站：OSI七层、TCP/IP四层、协议原理、报文字段、计算实验、图文协议详解与故障排查。">
+  <meta name="description" content="用交互模型和协议流程图学习计算机网络，查看 OSI 七层、TCP/IP 四层、报文字段、网络计算与故障排查。">
   <title>网络结构工坊 · Network Atlas</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
@@ -14,31 +14,31 @@
   <header class="topbar">
     <a class="brand" href="./" aria-label="网络结构工坊首页"><span class="brand-symbol"><i></i><i></i><i></i></span><span>网络结构工坊<small>NETWORK ATLAS</small></span></a>
     <nav class="primary-nav" aria-label="学习视图"><button class="active" data-view="explore">分层探索</button><button data-view="protocols">协议详解</button><button data-view="transport">TCP / UDP 实验</button><button id="open-learning">深入学习</button></nav>
-    <div class="header-actions"><a class="source-download-link" href="./network-atlas-source.zip" download>源码 ZIP ↓</a><button class="quiet help-button" id="help" aria-label="打开操作指南">操作指南 <span>↗</span></button></div>
+    <div class="header-actions"><a class="source-download-link" href="./network-atlas-source.zip" download>下载源码 ↓</a><button class="quiet help-button" id="help" aria-label="打开操作指南">操作指南 <span>↗</span></button></div>
   </header>
   <main class="workspace" id="explore-screen">
     <aside class="sidebar">
-      <div class="sidebar-title"><span class="eyebrow">01 / 选择模型</span><h1>看见网络的层次</h1><p>从一段消息，到一次跨网络通信。</p></div>
+      <div class="sidebar-title"><span class="eyebrow">01 / 选择模型</span><h1>网络分层</h1><p>选择一层，查看它的职责和相关协议。</p></div>
       <div class="model-switch" role="group" aria-label="网络模型"><button class="active" data-model="osi">OSI 七层</button><button data-model="tcpip">TCP/IP 四层</button></div>
       <div class="layer-heading"><span id="model-caption">开放系统互连参考模型</span><small>点击探索 ↓</small></div>
       <nav id="layer-list" class="layer-list" aria-label="选择网络层"></nav>
-      <div class="sidebar-note"><span class="note-icon">i</span><p id="model-note">七层是功能划分，不是主机中七块真实硬件。模型中的分层结构用于教学。</p></div>
+      <div class="sidebar-note"><span class="note-icon">i</span><p id="model-note">OSI 七层按通信功能划分；这里的层块用于表示各层的位置。</p></div>
       <footer class="sidebar-footer"><span class="status-dot"></span> 交互式网络学习 · 中文版</footer>
     </aside>
     <section class="middle">
       <section class="scene" aria-label="双主机3D通信教学模型">
-        <div class="scene-heading"><span class="scene-kicker">INTERACTIVE 3D LAB</span><h2 id="scene-title">一条消息的旅程</h2><p id="scene-subtitle">发送端向下封装 · 接收端向上解封装</p></div>
+        <div class="scene-heading"><span class="scene-kicker">OSI &amp; TCP/IP</span><h2 id="scene-title">封装与逐跳转发</h2><p id="scene-subtitle">发送端向下封装 · 接收端向上解封装</p></div>
         <div class="scene-badge"><span class="status-dot"></span><span id="scene-mode">OSI / 7 LAYERS</span></div>
         <canvas id="scene-canvas" tabindex="0" aria-label="可旋转的双主机3D模型。拖动旋转，滚轮缩放，也可使用左侧网络层按钮。"></canvas>
         <div id="scene-labels" class="scene-labels"></div>
         <div id="packet-label" class="packet-label" hidden></div>
-        <div class="scene-bottom"><span class="scene-tip">拖动旋转 · 滚轮缩放 · 点击层块</span><div class="scene-tools"><button id="rotate" title="自动旋转" aria-pressed="false">⟳ <span>旋转</span></button><button id="reset-camera" title="复位视角">⌖ <span>复位</span></button><button id="spread" title="切换分层与紧凑视图" aria-pressed="true">▤ <span>分层</span></button></div></div>
+        <div class="scene-bottom"><span class="scene-tip">拖动旋转 · 滚轮缩放</span><div class="scene-tools"><button id="rotate" title="自动旋转" aria-pressed="false">⟳ <span>旋转</span></button><button id="reset-camera" title="复位视角">⌖ <span>复位</span></button><button id="spread" title="切换分层与紧凑视图" aria-pressed="true">▤ <span>分层</span></button></div></div>
         <div class="relation-caption" id="relation-caption">虚线表示同层逻辑关系，实际数据沿协议栈和物理链路传送</div>
       </section>
       <section class="journey">
-        <div class="journey-top"><div><span class="eyebrow" id="journey-eyebrow">02 / 通信过程</span><h3 id="journey-title">跟着数据走一遍</h3></div><div class="journey-options"><label>场景<select id="scenario"><option value="http">HTTP / TCP 封装</option><option value="dns">DNS / UDP 封装</option></select></label><button class="quiet" id="restart" title="重新开始">↺</button></div></div>
+        <div class="journey-top"><div><span class="eyebrow" id="journey-eyebrow">02 / 通信过程</span><h3 id="journey-title">通信过程</h3></div><div class="journey-options"><label>场景<select id="scenario"><option value="http">HTTP / TCP 封装</option><option value="dns">DNS / UDP 封装</option></select></label><button class="quiet" id="restart" title="重新开始">↺</button></div></div>
         <div class="playback"><button class="play-button" id="play"><span>▶</span> 播放过程</button><button class="step-button" id="next-step">下一步 →</button><div class="play-progress"><span id="step-counter">准备开始</span><div class="progress-track"><i id="progress-fill"></i></div></div><select id="speed" aria-label="播放速度"><option value="1">1× 速度</option><option value="1.8">1.8× 速度</option><option value="0.65">0.65× 速度</option></select></div>
-        <div class="step-detail" aria-live="polite"><span class="step-number" id="step-number">00</span><div><h4 id="step-title">准备好，发送一条消息</h4><p id="step-description">点击播放，观察消息怎样穿过两台主机的网络层。</p></div></div>
+        <div class="step-detail" aria-live="polite"><span class="step-number" id="step-number">00</span><div><h4 id="step-title">发送端准备数据</h4><p id="step-description">点击播放，观察消息怎样穿过两台主机的网络层。</p></div></div>
         <div id="packet-structure" class="packet-structure"></div>
         <p class="journey-footnote" id="journey-footnote">教学示意：忽略DNS解析、ARP查询与TCP建连；中间设备为路由器。</p>
       </section>
@@ -47,7 +47,7 @@
     <aside class="inspector" aria-label="网络知识详情"><div id="inspector-content"></div></aside>
   </main>
   <section id="protocol-screen" class="protocol-screen" hidden aria-label="分层协议图文详解"></section>
-  <dialog id="help-dialog"><button class="dialog-close" aria-label="关闭操作指南">×</button><span class="eyebrow">开始探索</span><h2>网络，不只是背下七层。</h2><p>选择一层，看它在通信中的位置；展开知识，再让一条消息走过整个网络。</p><ol><li><b>选择模型</b><span>在左侧切换OSI七层与TCP/IP四层。</span></li><li><b>点击层块</b><span>两台主机同步高亮这一层，右侧显示定义与协议。</span></li><li><b>展开知识</b><span>定义、核心机制、协议细节和常见误区均可逐级折叠。</span></li><li><b>播放通信</b><span>播放或单步查看封装、路由和接收端解封装。</span></li><li><b>进入传输实验</b><span>观察TCP三次握手、四次挥手，或UDP丢包与乱序示例。</span></li><li><b>深入学习与计算</b><span>向下滚动进入原理讲解、报文字段与五种网络计算实验。</span></li><li><b>协议图文详解</b><span>进入协议详解，按层选择协议，点击流程图逐步阅读原理、字段与协作关系；顶部可下载完整源码。</span></li></ol><p class="dialog-note">这是教学模拟，不会建立实际TCP连接或发送网络报文。按Esc关闭窗口。</p></dialog>
+  <dialog id="help-dialog"><button class="dialog-close" aria-label="关闭操作指南">×</button><span class="eyebrow">操作指南</span><h2>如何使用</h2><p>选择网络层查看定义与协议，播放通信过程，或打开协议详解阅读流程。</p><ol><li><b>选择模型</b><span>在左侧切换OSI七层与TCP/IP四层。</span></li><li><b>点击层块</b><span>两台主机同步高亮这一层，右侧显示定义与协议。</span></li><li><b>展开知识</b><span>定义、核心机制、协议细节和常见误区均可逐级折叠。</span></li><li><b>播放通信</b><span>播放或单步查看封装、路由和接收端解封装。</span></li><li><b>进入传输实验</b><span>观察TCP三次握手、四次挥手，或UDP丢包与乱序示例。</span></li><li><b>深入学习与计算</b><span>向下滚动进入原理讲解、报文字段与五种网络计算实验。</span></li><li><b>协议图文详解</b><span>进入协议详解，按层选择协议，点击流程图逐步阅读原理、字段与协作关系；顶部可下载源码。</span></li></ol><p class="dialog-note">这是教学模拟，不会建立实际TCP连接或发送网络报文。按Esc关闭窗口。</p></dialog>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

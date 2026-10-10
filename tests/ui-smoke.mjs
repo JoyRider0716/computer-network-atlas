@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 const decode=s=>s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&');
 class Text {constructor(text){this.textContent=decode(text);}}
 class Element {
- constructor(tag='div',attrs={}){this.tagName=tag.toLowerCase();this.attrs={...attrs};this.children=[];this.style={};this.listeners={};this.parentElement=null;this._value=undefined;this.hidden=Object.hasOwn(attrs,'hidden');this.disabled=false;this.checked=Object.hasOwn(attrs,'checked');this.open=Object.hasOwn(attrs,'open');this.classList={toggle:(name,force)=>{const set=new Set((this.className||'').split(/\s+/).filter(Boolean));const yes=force===undefined?!set.has(name):force;yes?set.add(name):set.delete(name);this.className=[...set].join(' ');return yes;},add:name=>this.classList.toggle(name,true),remove:name=>this.classList.toggle(name,false)};}
+ constructor(tag='div',attrs={}){this.tagName=tag.toLowerCase();this.attrs={...attrs};this.children=[];this.style={setProperty(name,value){this[name]=String(value);}};this.listeners={};this.parentElement=null;this._value=undefined;this.hidden=Object.hasOwn(attrs,'hidden');this.disabled=false;this.checked=Object.hasOwn(attrs,'checked');this.open=Object.hasOwn(attrs,'open');this.classList={toggle:(name,force)=>{const set=new Set((this.className||'').split(/\s+/).filter(Boolean));const yes=force===undefined?!set.has(name):force;yes?set.add(name):set.delete(name);this.className=[...set].join(' ');return yes;},add:name=>this.classList.toggle(name,true),remove:name=>this.classList.toggle(name,false)};}
  get id(){return this.attrs.id||'';}set id(v){this.attrs.id=v;}
  get className(){return this.attrs.class||'';}set className(v){this.attrs.class=v;}
  get dataset(){const data={};for(const [key,v] of Object.entries(this.attrs))if(key.startsWith('data-'))data[key.slice(5).replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=v;return data;}
@@ -26,6 +26,9 @@ class Element {
  matches(selector){const m=selector.match(/^([\w-]+)?(?:#([\w-]+))?(?:\.([\w-]+))?(?:\[([\w-]+)(?:="([^"]*)")?\])?$/);if(!m)throw new Error('Unsupported harness selector: '+selector);return(!m[1]||m[1]===this.tagName)&&(!m[2]||m[2]===this.id)&&(!m[3]||this.className.split(/\s+/).includes(m[3]))&&(!m[4]||(Object.hasOwn(this.attrs,m[4])&&(m[5]===undefined||this.attrs[m[4]]===m[5])));}
  querySelectorAll(selector){const out=[];const walk=node=>{for(const c of node.children||[]){if(c instanceof Element){if(c.matches(selector))out.push(c);walk(c);}}};walk(this);return out;}
  querySelector(selector){return this.querySelectorAll(selector)[0]||null;}
+ get offsetWidth(){return this.className.includes('layer-label')?118:this.className.includes('host-label')?126:this.className.includes('router-label')?140:780;}
+ get offsetHeight(){return this.className.includes('layer-label')?28:this.className.includes('scene-heading')?100:this.className.includes('model-label')?40:550;}
+ get offsetTop(){return this.className.includes('scene-heading')?26:0;}
  getBoundingClientRect(){return{width:780,height:550,left:0,top:0,right:780,bottom:550};}
  getContext(type){if(type==='webgl')return null;return new Proxy({},{get:()=>()=>{}});}
  setPointerCapture(){}scrollIntoView(){}showModal(){this.open=true;}close(){this.open=false;}
@@ -33,7 +36,7 @@ class Element {
 function parseInto(root,html){const stack=[root];const voids=new Set(['meta','interface','input','br','hr','img','source']);for(const token of html.match(/<!--[\s\S]*?-->|<[^>]*>|[^<]+/g)||[]){if(token.startsWith('<!--')||token.startsWith('<!'))continue;if(token.startsWith('</')){if(stack.length>1)stack.pop();continue;}if(token.startsWith('<')){const m=token.match(/^<([\w-]+)([\s\S]*?)\/?\s*>$/);if(!m)continue;const attrs={};for(const a of m[2].matchAll(/([\w-]+)(?:\s*=\s*"([^"]*)")?/g))attrs[a[1]]=decode(a[2]??'');const el=new Element(m[1],attrs);stack.at(-1).appendChild(el);if(!voids.has(el.tagName)&&!token.endsWith('/>'))stack.push(el);}else stack.at(-1).children.push(new Text(token));}}
 
 const doc=new Element('document');doc.innerHTML=readFileSync(new URL('../dist/index.html',import.meta.url),'utf8');
-doc.getElementById=id=>doc.querySelector('#'+id);doc.createElement=tag=>new Element(tag);doc.hidden=false;
+doc.getElementById=id=>doc.querySelector('#'+id);doc.createElement=tag=>new Element(tag);doc.createElementNS=(_namespace,tag)=>new Element(tag);doc.hidden=false;
 globalThis.document=doc;globalThis.window={scrollY:0,scrollTo(o){this.scrollY=o.top;}};
 globalThis.devicePixelRatio=1;globalThis.ResizeObserver=class{observe(){}};
 const frames=[];globalThis.requestAnimationFrame=fn=>frames.push(fn);
@@ -54,7 +57,8 @@ assert.ok(el('study-body').textContent.includes('字符、字节'));
 click('[data-layer="3"]');assert.ok(el('study-body').textContent.includes('发送时延'));
 click('[data-view="transport"]');assert.ok(el('study-context').textContent.includes('传输层'));
 for(let i=0;i<3;i++)el('next-step').click();assert.ok(el('lab-state').textContent.includes('ESTABLISHED'));
-click('[data-lab="close"]');for(let i=0;i<4;i++)el('next-step').click();assert.ok(el('lab-state').textContent.includes('TIME-WAIT'));
+click('[data-lab="close"]');for(let i=0;i<3;i++)el('next-step').click();assert.ok(el('lab-state').textContent.includes('TIME-WAIT'));assert.ok(el('lab-state').textContent.includes('LAST-ACK'));
+el('next-step').click();assert.ok(el('lab-state').textContent.includes('CLOSED'));
 click('[data-model="osi"]');assert.equal(el('layer-list').querySelectorAll('button').length,7);assert.ok(el('study-context').textContent.includes('传输层'));
 
 click('[data-study-tab="fields"]');click('[data-packet="ipv4"]');click('[data-field="ip-offset"]');assert.ok(el('study-body').textContent.includes('185 → 1480字节'));
@@ -70,7 +74,7 @@ assert.equal(doc.querySelectorAll('[data-study-tab="interview"]').length,0);
 click('[data-view="protocols"]');assert.equal(el('explore-screen').hidden,true);assert.equal(el('protocol-screen').hidden,false);
 assert.equal(doc.querySelectorAll('[data-atlas-layer]').length,7);
 click('[data-protocol="dns"]');assert.ok(el('protocol-detail').textContent.includes('DNS'));
-el('protocol-next').click();assert.ok(doc.querySelector('.protocol-step-detail').textContent.includes('查缓存与TTL'));
+el('protocol-next').click();assert.ok(doc.querySelector('[data-protocol-step="1"]').className.includes('active'));assert.ok(doc.querySelector('.protocol-step-detail').textContent.includes('TTL'));
 click('[data-diagram-step="4"]');assert.ok(doc.querySelector('.protocol-step-detail').textContent.includes('返回解析结果'));assert.ok(Object.hasOwn(el('protocol-next').attrs,'disabled'));
 click('[data-related="tls"]');assert.ok(el('protocol-title').textContent.includes('TLS 1.3'));assert.ok(el('protocol-detail').textContent.includes('证书'));
 click('[data-atlas-model="tcpip"]');assert.equal(doc.querySelectorAll('[data-atlas-layer]').length,4);assert.equal(el('layer-list').querySelectorAll('button').length,4);
@@ -87,4 +91,5 @@ click('[data-view="explore"]');
 el('help').click();assert.equal(el('help-dialog').open,true);doc.querySelector('.dialog-close').click();assert.equal(el('help-dialog').open,false);
 // Exercise one compatible-rendering frame and DOM label positioning without a real browser.
 frames[0](100);assert.ok(doc.querySelector('.layer-label').style.transform.includes('translate'));
-console.log('PASS: DOM wiring smoke checks: model/layer switches, transport labs, field explorer, 5 calculators, learning navigation, all 32 illustrated protocols in both models, diagram steps, relationships, filtering and help. Browser layout remains unverified.');
+assert.ok(!/NaN|undefined/.test(doc.querySelector('.layer-label').style.transform));
+console.log('PASS: DOM wiring smoke checks: model/layer switches, transport labs, field explorer, 5 calculators, learning navigation, all 32 illustrated protocols in both models, diagram steps, relationships, filtering and help. Browser layout checks run separately.');

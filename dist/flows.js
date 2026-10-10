@@ -1,12 +1,94 @@
-// 无DOM依赖的教学流程生成器，便于验证封装与解封装。
-export function buildJourney(ls,scenario){const udp=scenario==='dns';const trans=udp?'UDP':'TCP',app=udp?'DNS查询':'HTTP请求';const n=ls.length;let headers=[{text:app,kind:'payload'}];const steps=[];
- const appLayer=l=>l.id==='application'||l.id==='tcp-application';const transport=l=>l.id.includes('transport');const network=l=>l.id==='network'||l.id==='internet';const link=l=>l.id==='datalink'||l.id==='interface';
- for(let i=0;i<n;i++){const l=ls[i];let description;if(appLayer(l))description=udp?'生成DNS A记录查询，交给UDP传输。本例已具备服务器地址，不演示域名解析的全部前置步骤。':'生成一份HTTP请求。为清楚观察各层，本示例使用未加TLS的HTTP，且TCP连接已建立。';else if(transport(l)){headers.unshift({text:`${trans}头 · 53000 → ${udp?53:80}`,kind:'transport'});description=`添加${trans}首部，用端口区分发送与接收端点。${udp?'UDP保留数据报边界，自身不确认和重传。':'TCP承载有序字节流，不保留应用消息边界。'}`;}else if(network(l)){headers.unshift({text:'IP头 · TTL 64',kind:'network'});description='添加IP首部：192.168.1.10 → 192.168.2.20。目的地址跨子网，下一跳是本地网关。';}else if(link(l)){headers.unshift({text:'帧头 · A → R左',kind:'link'});headers.push({text:'FCS',kind:'link'});description='第一跳以太网帧的目的MAC是路由器左接口，源MAC是主机A。ARP信息视为已知。';if(l.id==='interface')description+=' 网络接口层也负责把帧编码为信号。';}else if(l.id==='physical')description='把帧编码为电、光或无线信号，开始在第一段链路上传送。物理层不再添加普通应用意义的头部。';else description=l.id==='presentation'?'完成必要的数据表示处理。此示例不虚构一个固定的“表示层头部”。':'应用管理相关交互状态；这一阶段是功能划分，不虚构固定的“会话层头部”。';steps.push({title:`发送端 · ${l.name}`,description,layer:i,host:0,headers:headers.map(x=>({...x})),tag:l.unit});}
- const ipHeaders=headers.filter(h=>h.kind!=='link').map(h=>h.kind==='network'?{...h,text:'IP头 · TTL 63'}:{...h});
- steps.push({title:'路由器 · 检查IP并选择下一跳',description:'移除第一跳帧封装，依据目的IP转发，并把TTL从64减为63。本例没有NAT，源与目的IP不变；普通路由器不进行应用层解封装。',router:true,layer:ls.findIndex(network),headers:ipHeaders,tag:'IP路由 · TTL 63'});
- const secondHeaders=[{text:'帧头 · R右 → B',kind:'link'},...ipHeaders,{text:'FCS',kind:'link'}];
- steps.push({title:'第二段链路 · 重新封装并发送',description:'使用路由器右接口MAC作为源MAC、主机B的MAC作为目的MAC，重新计算FCS并发送。每一跳可使用不同链路技术。',bridge:true,layer:n-1,headers:secondHeaders,tag:'新帧 · R右 → B'});
- headers=secondHeaders.map(x=>({...x}));
- for(let i=n-1;i>=0;i--){const l=ls[i];let description;if(l.id==='physical')description='主机B接收信号并恢复比特，交给数据链路层识别帧。';else if(link(l)){headers=headers.filter(h=>h.kind!=='link');description='识别目的链路地址并检查FCS。通过后去掉这一跳的帧头与帧尾，把IP分组交给上层。';}else if(network(l)){headers=headers.filter(h=>h.kind!=='network');description='确认目的IP属于主机B，依据上层协议标识把载荷交给TCP或UDP。';}else if(transport(l)){headers=headers.filter(h=>h.kind!=='transport');description=udp?'根据目的端口53把DNS数据报交给相应应用。此示意中该数据报成功到达，但UDP不保证每份都成功。':'TCP进行接收处理、排序与确认等，按端口把字节流交给应用。动画仅展示一次交付，不逐个演示TCP确认报文。';}else if(appLayer(l))description=udp?'DNS服务解析查询内容，随后可以生成响应。本动画只展示请求方向。':'HTTP服务解析请求并处理资源，随后可返回响应。本动画只展示请求方向。';else description=l.id==='session'?'按照应用的交互规则处理会话相关状态。':'按约定编码或格式解释数据，恢复应用能理解的内容。';steps.push({title:`接收端 · ${l.name}`,description,layer:i,host:1,headers:headers.map(x=>({...x})),tag:appLayer(l)?'成功交付':l.unit});}
- return steps;
+// 各层在发送端依次封装，经过一次路由转发后在接收端解封装。
+export function buildJourney(ls, scenario) {
+  const udp = scenario === 'dns';
+  const trans = udp ? 'UDP' : 'TCP';
+  const app = udp ? 'DNS查询' : 'HTTP请求';
+  const n = ls.length;
+  let headers = [{text: app, kind: 'payload'}];
+  const steps = [];
+
+  const appLayer = l => l.id === 'application' || l.id === 'tcp-application';
+  const transport = l => l.id.includes('transport');
+  const network = l => l.id === 'network' || l.id === 'internet';
+  const link = l => l.id === 'datalink' || l.id === 'interface';
+
+  for (let i = 0; i < n; i++) {
+    const l = ls[i];
+    let description;
+    if (appLayer(l)) {
+      description = udp
+        ? '生成DNS A记录查询，交给UDP。本例已知DNS服务器的IP地址，只演示一次查询的发送过程。'
+        : '生成HTTP请求，交给已建立的TCP连接。本例使用明文HTTP，不包含TLS握手。';
+    } else if (transport(l)) {
+      headers.unshift({text: `${trans}头 · 53000 → ${udp ? 53 : 80}`, kind: 'transport'});
+      description = `添加${trans}首部，源端口为53000，目的端口为${udp ? 53 : 80}。${udp
+        ? 'UDP保留数据报边界，自身不提供确认或重传。'
+        : 'TCP传输有序字节流，应用需要按自己的规则划分消息。'}`;
+    } else if (network(l)) {
+      headers.unshift({text: 'IP头 · TTL 64', kind: 'network'});
+      description = '添加IPv4首部，源地址为192.168.1.10，目的地址为192.168.2.20。主机A使用/24前缀，目的地址在另一子网，先交给本地网关。本例不分片。';
+    } else if (link(l)) {
+      headers.unshift({text: '帧头 · A → R左', kind: 'link'});
+      headers.push({text: 'FCS', kind: 'link'});
+      description = '封装第一跳以太网帧：源MAC是主机A，目的MAC是路由器左接口。网关的MAC地址已通过ARP获得，此处不展开ARP交换。';
+      if (l.id === 'interface') description += ' 网络接口层还将帧中的比特编码为链路上的信号。';
+    } else if (l.id === 'physical') {
+      description = '把帧中的比特编码为电信号或光信号，在第一段以太网链路上传送。';
+    } else {
+      description = l.id === 'presentation'
+        ? '按协议约定的编码和格式表示数据。本例没有独立的表示层首部。'
+        : '管理本次交互的状态；在这个示例中，会话功能由应用及相关协议实现，没有独立的会话层首部。';
+    }
+    steps.push({title: `发送端 · ${l.name}`, description, layer: i, host: 0, headers: headers.map(x => ({...x})), tag: l.unit});
+  }
+
+  const ipHeaders = headers.filter(h => h.kind !== 'link').map(h => h.kind === 'network' ? {...h, text: 'IP头 · TTL 63'} : {...h});
+  steps.push({
+    title: '路由器 · 检查IP并选择下一跳',
+    description: '检查并去掉第一跳的帧头与FCS，按目的IP查路由表。将TTL从64减为63，并更新IPv4首部校验和。本例不使用NAT，源、目的IP保持不变。',
+    router: true,
+    layer: ls.findIndex(network),
+    headers: ipHeaders,
+    tag: 'IP路由 · TTL 63'
+  });
+  const secondHeaders = [{text: '帧头 · R右 → B', kind: 'link'}, ...ipHeaders, {text: 'FCS', kind: 'link'}];
+  steps.push({
+    title: '第二段链路 · 重新封装并发送',
+    description: '路由器已通过ARP获得同一子网上主机B的MAC地址。用右接口MAC作源地址、主机B的MAC作目的地址，封装新帧并重新计算FCS，经第二段以太网链路发送。',
+    bridge: true,
+    layer: n - 1,
+    headers: secondHeaders,
+    tag: '新帧 · R右 → B'
+  });
+  headers = secondHeaders.map(x => ({...x}));
+
+  for (let i = n - 1; i >= 0; i--) {
+    const l = ls[i];
+    let description;
+    if (l.id === 'physical') {
+      description = '主机B接收信号，恢复比特，再交给数据链路层识别帧。';
+    } else if (link(l)) {
+      headers = headers.filter(h => h.kind !== 'link');
+      description = '检查目的MAC地址和FCS，通过后去掉帧头、帧尾，把载荷交给IPv4处理。';
+      if (l.id === 'interface') description = '主机B接收信号并恢复帧，检查目的MAC地址和FCS，通过后去掉帧头、帧尾，把载荷交给IPv4处理。';
+    } else if (network(l)) {
+      headers = headers.filter(h => h.kind !== 'network');
+      description = `确认目的IP为主机B并检查IPv4首部，按总长度取出分组，排除可能的以太网填充，再根据协议号${udp ? 17 : 6}把IP载荷交给${trans}。`;
+    } else if (transport(l)) {
+      headers = headers.filter(h => h.kind !== 'transport');
+      description = udp
+        ? 'UDP检查数据报，根据目的端口53交给DNS服务。本例成功收到查询；UDP本身不保证交付。'
+        : 'TCP检查校验和、处理序列号并发送确认，将按序重组的字节流交给端口80上的HTTP服务。这里省略返回的确认报文。';
+    } else if (appLayer(l)) {
+      description = udp
+        ? 'DNS服务解析查询内容，准备查询结果。本动画到请求交付为止，响应沿反方向发送。'
+        : 'HTTP服务解析请求并处理目标资源。本动画到请求交付为止，响应沿反方向发送。';
+    } else {
+      description = l.id === 'session'
+        ? '按应用的交互规则更新会话状态。'
+        : '按约定的编码和格式解释收到的数据。';
+    }
+    steps.push({title: `接收端 · ${l.name}`, description, layer: i, host: 1, headers: headers.map(x => ({...x})), tag: appLayer(l) ? '成功交付' : l.unit});
+  }
+  return steps;
 }
