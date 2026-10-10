@@ -56,7 +56,7 @@ export class NetworkScene {
   this.labelRects=[];
   const margin=12,heading=this.canvas.parentElement.querySelector('.scene-heading');
   const headingBottom=heading?heading.offsetTop+heading.offsetHeight:110;
-  this.labelTop=this.modelBand?this.modelBand.bottom+12:headingBottom+12;
+  this.labelTop=headingBottom+12;
   const router=this.labelEls.find(a=>a.router);
   const groups=this.hosts.map((x,host)=>({host,x:this.project([x,1.7,0]).x,labels:this.labelEls.filter(a=>a.host===host&&a.layer!==undefined&&(this.spread||a.layer===this.selected))})).sort((a,b)=>a.x-b.x);
   const labelWidth=Math.max(...this.labelEls.filter(a=>a.layer!==undefined).map(a=>a.width),1);
@@ -122,11 +122,22 @@ export class NetworkScene {
   const {width,height}=this.packetLabelSize,p=this.project(this.packet.position);
   const clampX=x=>Math.max(width/2+12,Math.min(this.width-width/2-12,x));
   const clampY=y=>Math.max(this.labelTop+height/2,Math.min(this.height-88-height/2,y));
-  const desired={x:clampX(p.x),y:clampY(p.y-25-height/2)};
-  const candidates=[desired,{x:this.width/2,y:desired.y}];
-  for(let y=this.labelTop+height/2;y<=this.height-88-height/2;y+=8)candidates.push({x:this.width/2,y});
-  const clear=({x,y})=>!(this.labelRects||[]).some(r=>x+width/2+5>r.x&&x-width/2-5<r.x+r.width&&y+height/2+5>r.y&&y-height/2-5<r.y+r.height);
-  const positions=candidates.filter(clear).sort((a,b)=>Math.hypot(a.x-desired.x,a.y-desired.y)-Math.hypot(b.x-desired.x,b.y-desired.y));
+  const corners=[];
+  for(const x of [-.08,.08])for(const y of [-.08,.08])for(const z of [-.08,.08])corners.push(this.project(this.packet.position.map((v,i)=>v+[x,y,z][i])));
+  const bounds={left:Math.min(...corners.map(v=>v.x)),right:Math.max(...corners.map(v=>v.x)),top:Math.min(...corners.map(v=>v.y)),bottom:Math.max(...corners.map(v=>v.y))};
+  const gap=6;
+  const desired={x:clampX(p.x),y:clampY(bounds.top-gap-height/2)};
+  const candidates=[desired,
+   {x:clampX(bounds.right+gap+width/2),y:clampY(p.y)},
+   {x:clampX(bounds.left-gap-width/2),y:clampY(p.y)},
+   {x:clampX(p.x),y:clampY(bounds.bottom+gap+height/2)}];
+  for(let radius=8;radius<=Math.max(this.width,this.height);radius+=8){
+   for(const [dx,dy] of [[0,-radius],[radius,0],[-radius,0],[0,radius]])candidates.push({x:clampX(p.x+dx),y:clampY(p.y+dy)});
+  }
+  const overlaps=({x,y},r,padding)=>x+width/2+padding>r.left&&x-width/2-padding<r.right&&y+height/2+padding>r.top&&y-height/2-padding<r.bottom;
+  const clear=pos=>!overlaps(pos,bounds,gap)&&!(this.labelRects||[]).some(r=>overlaps(pos,{left:r.x,right:r.x+r.width,top:r.y,bottom:r.y+r.height},5));
+  const distance=({x,y})=>Math.hypot(Math.max(bounds.left-x-width/2,x-width/2-bounds.right,0),Math.max(bounds.top-y-height/2,y-height/2-bounds.bottom,0));
+  const positions=candidates.filter(clear).sort((a,b)=>distance(a)-distance(b)||Math.hypot(a.x-desired.x,a.y-desired.y)-Math.hypot(b.x-desired.x,b.y-desired.y));
   const position=positions[0]||desired;
   label.style.transform=`translate(${position.x}px,${position.y}px) translate(-50%,-50%)`;
  }
@@ -181,7 +192,7 @@ export class NetworkScene {
    this.layers.forEach((l,i)=>{const active=i===this.selected;const y=this.layerY(i);const color=active?[.86,.58,.34]:mix(rgb(l.color),[.14,.26,.31],.32);add([x,y,0],[2.46,.22,1.5],color,i);add([x,y+.115,0],[2.38,.024,1.42],active?'#e6bb81':mix(rgb(l.color),[.61,.78,.74],.28));add([x-1.16,y,.755],[.05,.10,.015],active?'#ffdc9d':'#b7d8cf');});
   }
   add([0,.09,1.05],[1.55,.26,.95],'#344e5e');add([0,.235,1.05],[1.51,.035,.91],'#567583');for(let i=0;i<4;i++){add([-.44+i*.29,.11,1.534],[.17,.085,.015],'#152c35');add([-.41+i*.29,.17,1.55],[.03,.025,.012],'#8bc4a4');}
-  if(this.packet){const point=this.packet.position;add(point,[.16,.16,.16],this.packet.drop?'#db8275':'#f1cf80');}
+  if(this.packet){const point=this.packet.position;add(point,[.16,.16,.16],this.packet.drop?'#c43e4b':'#ff716b');}
   return out;
  }
  line(points,color,alpha=1){if(this.gl){const gl=this.gl,arr=[];for(const p of points)arr.push(...p,0,1,0);gl.bindBuffer(gl.ARRAY_BUFFER,this.lineBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(arr),gl.DYNAMIC_DRAW);this.attributes();gl.uniform3fv(this.uniforms.Pos,[0,0,0]);gl.uniform3fv(this.uniforms.Size,[1,1,1]);gl.uniform4fv(this.uniforms.Color,[...color,alpha]);gl.uniform1f(this.uniforms.Unlit,1);gl.drawArrays(gl.LINES,0,points.length);}else{const c=this.ctx;c.strokeStyle=`rgba(${color.map(x=>Math.round(x*255)).join(',')},${alpha})`;c.lineWidth=1;for(let i=0;i<points.length;i+=2){const a=this.project(points[i]),b=this.project(points[i+1]);c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);c.stroke();}}}
