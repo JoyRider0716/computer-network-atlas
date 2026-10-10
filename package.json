@@ -3,7 +3,7 @@
   "version": "3.0.0",
   "private": true,
   "type": "module",
-  "description": "Interactive 3D OSI and TCP/IP networking education",
+  "description": "Bilingual 3D learning website for computer networks, OSI and TCP/IP",
   "scripts": {
     "check": "node check.mjs"
   }

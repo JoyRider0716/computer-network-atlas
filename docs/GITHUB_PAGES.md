@@ -15,13 +15,14 @@
 安装Python 3后，在上述目录运行：
 
 ```bash
+python scripts/build_locales.py
 python scripts/package_source.py --output dist/network-atlas-source.zip
 python -m http.server 8000 --directory dist
 ```
 
 Windows如果`python`不可用，可以把它换成`py`。
 
-浏览器打开`http://localhost:8000`。不要直接双击`index.html`，因为浏览器对本地文件的ES模块加载有限制。
+浏览器打开`http://localhost:8000`（中文）或`http://localhost:8000/en/`（英文）。顶部按钮可切换语言。不要直接双击`index.html`，因为浏览器对本地文件的ES模块加载有限制。
 
 如果安装了Node.js 18或更高版本，可以运行：
 
@@ -79,7 +80,7 @@ https://YOUR_USERNAME.github.io/network-atlas/
 - 修改3D模型：`dist/scene.js`。
 - 修改布局：`dist/styles.css`、`dist/study.css`和`dist/protocols.css`。
 
-工作流会重新生成网站内的完整源码下载包，因此在线下载内容会随推送更新。
+英文翻译维护在`locales/en.json`。修改中文文案后补齐英文翻译，运行`python scripts/build_locales.py`，不要直接编辑`dist/en/`生成文件。工作流会生成英文页面、检查两种语言，再重新生成完整源码下载包，因此在线下载内容会随推送更新。
 
 ## 六、常见部署问题
 

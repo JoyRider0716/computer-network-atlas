@@ -3,22 +3,24 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0c1926">
-  <meta name="description" content="面向大学考试与求职的3D网络学习网站：OSI七层、TCP/IP四层、协议原理、报文字段、计算实验、图文协议详解与故障排查。">
+  <meta name="description" content="面向计算机网络的3D学习网站：通过交互式双主机与路由器探索OSI和TCP/IP，学习协议原理、报文字段、封装过程与故障排查。提供中文和英文版本。">
   <title>网络结构工坊 · Network Atlas</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./study.css">
   <link rel="stylesheet" href="./protocols.css">
+  <link rel="alternate" hreflang="zh-CN" href="./">
+  <link rel="alternate" hreflang="en" href="./en/">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="./" aria-label="网络结构工坊首页"><span class="brand-symbol"><i></i><i></i><i></i></span><span>网络结构工坊<small>NETWORK ATLAS</small></span></a>
     <nav class="primary-nav" aria-label="学习视图"><button class="active" data-view="explore">分层探索</button><button data-view="protocols">协议详解</button><button data-view="transport">TCP / UDP 实验</button><button id="open-learning">深入学习</button></nav>
-    <div class="header-actions"><a class="source-download-link" href="./network-atlas-source.zip" download>源码 ZIP ↓</a><button class="quiet help-button" id="help" aria-label="打开操作指南">操作指南 <span>↗</span></button></div>
+    <div class="header-actions"><nav class="language-switch" aria-label="网站语言"><a data-language="zh" href="./" lang="zh-CN" aria-current="page">中文</a><a data-language="en" href="./en/" lang="en">English</a></nav><a class="source-download-link" href="./network-atlas-source.zip" download>源码 ZIP ↓</a><button class="quiet help-button" id="help" aria-label="打开操作指南">操作指南 <span>↗</span></button></div>
   </header>
   <main class="workspace" id="explore-screen">
     <aside class="sidebar">
-      <div class="sidebar-title"><span class="eyebrow">01 / 选择模型</span><h1>看见网络的层次</h1><p>从一段消息，到一次跨网络通信。</p></div>
+      <div class="sidebar-title"><span class="eyebrow">01 / 选择模型</span><h1>看见网络的层次</h1><p>面向计算机网络的3D学习网站。<br>从一段消息，到一次跨网络通信。</p></div>
       <div class="model-switch" role="group" aria-label="网络模型"><button class="active" data-model="osi">OSI 七层</button><button data-model="tcpip">TCP/IP 四层</button></div>
       <div class="layer-heading"><span id="model-caption">开放系统互连参考模型</span><small>点击探索 ↓</small></div>
       <nav id="layer-list" class="layer-list" aria-label="选择网络层"></nav>

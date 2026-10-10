@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c1926">
+  <meta name="description" content="A 3D learning website for computer networks. Explore OSI and TCP/IP with interactive hosts and a router, and learn protocols, packet fields, encapsulation and troubleshooting. Available in Chinese and English.">
+  <title>Network Atlas · 3D Computer Network Learning</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../study.css">
+  <link rel="stylesheet" href="../protocols.css">
+  <link rel="alternate" hreflang="zh-CN" href="../">
+  <link rel="alternate" hreflang="en" href="./">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Network Atlas home"><span class="brand-symbol"><i></i><i></i><i></i></span><span>Network Atlas<small>3D NETWORK LEARNING</small></span></a>
+    <nav class="primary-nav" aria-label="Learning views"><button class="active" data-view="explore">Explore layers</button><button data-view="protocols">Protocol guide</button><button data-view="transport">TCP / UDP labs</button><button id="open-learning">Learn more</button></nav>
+    <div class="header-actions"><nav class="language-switch" aria-label="Website language"><a data-language="zh" href="../" lang="zh-CN">中文</a><a data-language="en" href="./" lang="en" aria-current="page">English</a></nav><a class="source-download-link" href="../network-atlas-source.zip" download>Source ZIP ↓</a><button class="quiet help-button" id="help" aria-label="Open user guide">User guide <span>↗</span></button></div>
+  </header>
+  <main class="workspace" id="explore-screen">
+    <aside class="sidebar">
+      <div class="sidebar-title"><span class="eyebrow">01 / CHOOSE A MODEL</span><h1>See the layers of a network</h1><p>A 3D learning website for computer networks.<br>From one message to communication across networks.</p></div>
+      <div class="model-switch" role="group" aria-label="Network model"><button class="active" data-model="osi">OSI: 7 layers</button><button data-model="tcpip">TCP/IP: 4 layers</button></div>
+      <div class="layer-heading"><span id="model-caption">Open Systems Interconnection reference model</span><small>Select to explore ↓</small></div>
+      <nav id="layer-list" class="layer-list" aria-label="Choose a network layer"></nav>
+      <div class="sidebar-note"><span class="note-icon">i</span><p id="model-note">The seven layers divide functions, not seven real hardware blocks. This layered model is for learning.</p></div>
+      <footer class="sidebar-footer"><span class="status-dot"></span> Interactive network learning · English</footer>
+    </aside>
+    <section class="middle">
+      <section class="scene" aria-label="Two-host 3D communication learning model">
+        <div class="scene-heading"><span class="scene-kicker">INTERACTIVE 3D LAB</span><h2 id="scene-title">The journey of a message</h2><p id="scene-subtitle">Encapsulate down the sender stack · Decapsulate up the receiver stack</p></div>
+        <div class="scene-badge"><span class="status-dot"></span><span id="scene-mode">OSI / 7 LAYERS</span></div>
+        <canvas id="scene-canvas" tabindex="0" aria-label="Rotatable two-host 3D model. Drag to rotate, scroll to zoom, or use the layer buttons on the left."></canvas>
+        <div id="scene-labels" class="scene-labels"></div>
+        <div id="packet-label" class="packet-label" hidden></div>
+        <div class="scene-bottom"><span class="scene-tip">Drag to rotate · Scroll to zoom · Select a layer</span><div class="scene-tools"><button id="rotate" title="Auto-rotate" aria-pressed="false">⟳ <span>Rotate</span></button><button id="reset-camera" title="Reset camera">⌖ <span>Reset</span></button><button id="spread" title="Toggle layered and compact views" aria-pressed="true">▤ <span>Layers</span></button></div></div>
+        <div class="relation-caption" id="relation-caption">Dotted lines show logical peer relationships; real data follows stacks and physical links</div>
+      </section>
+      <section class="journey">
+        <div class="journey-top"><div><span class="eyebrow" id="journey-eyebrow">02 / COMMUNICATION</span><h3 id="journey-title">Follow the data</h3></div><div class="journey-options"><label>Scenario<select id="scenario"><option value="http">HTTP / TCP encapsulation</option><option value="dns">DNS / UDP encapsulation</option></select></label><button class="quiet" id="restart" title="Restart">↺</button></div></div>
+        <div class="playback"><button class="play-button" id="play"><span>▶</span> Play</button><button class="step-button" id="next-step">Next →</button><div class="play-progress"><span id="step-counter">Ready to start</span><div class="progress-track"><i id="progress-fill"></i></div></div><select id="speed" aria-label="Playback speed"><option value="1">1× speed</option><option value="1.8">1.8× speed</option><option value="0.65">0.65× speed</option></select></div>
+        <div class="step-detail" aria-live="polite"><span class="step-number" id="step-number">00</span><div><h4 id="step-title">Ready to send a message</h4><p id="step-description">Press Play to watch a message pass through both host stacks.</p></div></div>
+        <div id="packet-structure" class="packet-structure"></div>
+        <p class="journey-footnote" id="journey-footnote">Teaching model: DNS lookup, ARP and TCP establishment are omitted; the intermediate device is a router.</p>
+      </section>
+      <section class="learning-hub" id="learning-hub" aria-label="Computer network principles"></section>
+    </section>
+    <aside class="inspector" aria-label="Network knowledge details"><div id="inspector-content"></div></aside>
+  </main>
+  <section id="protocol-screen" class="protocol-screen" hidden aria-label="Illustrated protocols by layer"></section>
+  <dialog id="help-dialog"><button class="dialog-close" aria-label="Close user guide">×</button><span class="eyebrow">Start exploring</span><h2>Networks are more than seven names to memorize.</h2><p>Choose a layer, see its role, expand the concepts, then follow a message across the network.</p><ol><li><b>Choose a model</b><span>Switch between seven-layer OSI and four-layer TCP/IP on the left.</span></li><li><b>Select a layer block</b><span>Both hosts highlight the same layer; definitions and protocols appear on the right.</span></li><li><b>Explore the concepts</b><span>Expand definitions, mechanisms, protocol details and common misconceptions.</span></li><li><b>Play communication</b><span>Play or step through encapsulation, routing and receiver decapsulation.</span></li><li><b>Open transport labs</b><span>Observe TCP establishment and closing, or examples of UDP loss and reordering.</span></li><li><b>Learn and calculate</b><span>Scroll to principles, packet fields and five network calculators.</span></li><li><b>Illustrated protocol guide</b><span>Choose a protocol by layer and follow diagram steps for mechanisms, fields and relationships. Download complete source from the header.</span></li></ol><p class="dialog-note">This is a teaching simulation; it creates no real TCP connections or network packets. Press Esc to close.</p></dialog>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

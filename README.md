@@ -1,6 +1,10 @@
 # 网络结构工坊 · Network Atlas 3
 
-面向大学计算机网络课程与实际工作的中文3D学习网站。通过双主机和路由器理解分层，再使用协议图文手册学习职责、工作原理、报文字段与协作关系。
+[中文](README.md) | [English](README.en.md)
+
+**面向计算机网络的3D学习网站，提供完整中文与英文版本。** 通过可交互的双主机与路由器3D场景理解OSI和TCP/IP分层，观察消息封装与逐跳转发，再学习协议工作原理、报文字段和协作关系。适合大学计算机网络课程、自主学习和实际工作查阅。
+
+中文页面位于网站根目录，英文页面位于 `en/`；顶部的 **中文 / English** 按钮可切换语言。两种版本覆盖相同的32个协议条目、29节原理讲解、5个计算器与8个排查案例。
 
 ## 主要功能
 
@@ -18,14 +22,15 @@
 
 ## 本地运行
 
-没有第三方npm依赖或构建步骤。安装Python 3后，在仓库根目录运行：
+没有第三方npm依赖或编译步骤。英文页面由共享源码与 `locales/en.json` 翻译表生成。安装Python 3后，在仓库根目录运行：
 
 ```bash
+python scripts/build_locales.py
 python scripts/package_source.py --output dist/network-atlas-source.zip
 python -m http.server 8000 --directory dist
 ```
 
-打开 `http://localhost:8000`，点击顶部的 **协议详解**。Windows也可用 `py` 代替 `python`。请通过HTTP访问，直接双击HTML可能导致ES模块加载失败。
+打开 `http://localhost:8000`（中文）或 `http://localhost:8000/en/`（英文），点击顶部的 **协议详解 / Protocol guide**。Windows也可用 `py` 代替 `python`。请通过HTTP访问，直接双击HTML可能导致ES模块加载失败。
 
 ## 检查
 
@@ -35,7 +40,7 @@ python -m http.server 8000 --directory dist
 node check.mjs
 ```
 
-检查覆盖模块/资源关联、协议目录在两个模型中的完整性、图中节点和协作引用、所有32条目的步骤交互、模型切换、计算边界、封装流程和3D数学。DOM模拟检查不代替真实浏览器的排版与触摸验证。
+检查覆盖模块/资源关联、协议目录在两种语言和两个模型中的完整性、图中节点和协作引用、所有32条目的步骤交互、模型切换、计算边界、封装流程和3D数学。DOM模拟检查不代替真实浏览器的排版与触摸验证。可用 `python scripts/build_locales.py --check` 单独检查英文生成结果是否最新。
 
 ## GitHub Pages部署
 
@@ -46,13 +51,16 @@ node check.mjs
 3. 推送到 `main`，或在Actions手动运行部署工作流。
 4. 打开GitHub返回的Pages地址。
 
-工作流检查源码、重新生成源码ZIP并部署 `dist/`。所有运行资源使用相对路径，兼容 `/<仓库名>/`。无需API密钥、ChatGPT账号、数据库或运行时CDN。
+工作流生成英文页面、检查两种语言、重新生成源码ZIP并部署整个 `dist/`。所有运行资源与语言链接使用相对路径，兼容 `/<仓库名>/`。无需API密钥、ChatGPT账号、数据库或运行时CDN。
 
 ## 源码结构
 
 | 文件 | 作用 |
 | --- | --- |
 | `dist/index.html` | 页面入口与导航 |
+| `dist/en/` | 自动生成的完整英文网站，与中文版共用样式 |
+| `locales/en.json` | 英文翻译表，覆盖界面、无障碍标签和教学内容 |
+| `scripts/build_locales.py` | 从共享源码生成英文版本；`--check` 检查生成结果是否最新 |
 | `dist/app.js` | 3D主界面与协议页面联动 |
 | `dist/scene.js` | WebGL几何、镜头、点击检测与兼容投影 |
 | `dist/content.js` | 原有层级、基础协议与传输实验数据 |
@@ -65,7 +73,7 @@ node check.mjs
 | `dist/calculators.js` | 网络计算逻辑 |
 | `dist/learning.js` | 原理、字段、计算与排查栏目 |
 | `dist/styles.css`、`dist/study.css` | 主界面与进阶栏目样式 |
-| `check.mjs`、`tests/ui-smoke.mjs` | 数据、运算与交互逻辑验证 |
+| `check.mjs`、`tests/ui-smoke.mjs`、`tests/locales.mjs` | 数据、运算、双语内容与交互逻辑验证 |
 | `scripts/package_source.py` | 完整源码ZIP打包 |
 | `.github/workflows/deploy-pages.yml` | GitHub Pages部署 |
 | `docs/` | 部署指南与内容范围 |
@@ -80,11 +88,12 @@ node check.mjs
 - `links` 说明承载、格式或功能配合，并指向另一条目；它不是固定的封装链。
 - 基础23个条目复用 `content.js` 的定义和知识点，新增条目在 `protocol-data.js` 中定义。
 
-图是代码生成的SVG，保持清晰和可编辑，无需购买图片或3D模型。新增或修改后运行检查与打包命令。
+图是代码生成的SVG，保持清晰和可编辑，无需购买图片或3D模型。新增或修改后，先在 `locales/en.json` 中补齐对应英文文案，再运行 `python scripts/build_locales.py`、检查与打包命令。不要直接修改 `dist/en/` 中的生成文件。生成器遇到未翻译文案会报错，防止英文版遗漏内容；两种语言的协议ID、数据结构、算法和控制按钮保持一致。
 
 ## 人工浏览器检查
 
 - 桌面与手机：导航和目录可用，页面不横向溢出；较宽的协议图可在图框内水平滚动。
+- 语言：中文和英文入口、顶部语言按钮、帮助说明及源码下载均可用；在两种语言下检查以下功能。
 - 模型切换：目录分类、协议数量与回到3D的位置正确。
 - 协议：筛选、点击图中步骤、键盘Enter/Space、上一步/下一步、从头查看可用；文字与高亮匹配。
 - 关联图：点击目标节点或文字卡片跳转，折叠项保持相应状态。
