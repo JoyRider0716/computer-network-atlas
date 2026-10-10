@@ -40,7 +40,7 @@ export class NetworkScene {
   this.canvas.addEventListener('wheel',e=>{e.preventDefault();this.zoom=Math.max(.68,Math.min(1.65,this.zoom*Math.exp(e.deltaY*.001)));},{passive:false});
   this.canvas.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-','Home'].includes(e.key))e.preventDefault();if(e.key==='ArrowLeft')this.angle-=.12;if(e.key==='ArrowRight')this.angle+=.12;if(e.key==='ArrowUp')this.pitch=Math.min(.75,this.pitch+.06);if(e.key==='ArrowDown')this.pitch=Math.max(.08,this.pitch-.06);if(e.key==='+')this.zoom=Math.max(.68,this.zoom*.9);if(e.key==='-')this.zoom=Math.min(1.65,this.zoom/ .9);if(e.key==='Home')this.reset();});
  }
- resize(){const rect=this.canvas.parentElement.getBoundingClientRect();this.width=rect.width;this.height=rect.height;const dpr=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.round(this.width*dpr);this.canvas.height=Math.round(this.height*dpr);this.dpr=dpr;this.measureLabels();this.canvas.parentElement.classList.toggle('scene-labels-below',this.width<2*Math.max(...this.labelEls.filter(a=>a.layer!==undefined).map(a=>a.width),0)+220);this.packetLabelSize=null;}
+ resize(){const rect=this.canvas.parentElement.getBoundingClientRect();this.width=rect.width;this.height=rect.height;const dpr=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.round(this.width*dpr);this.canvas.height=Math.round(this.height*dpr);this.dpr=dpr;this.measureLabels();this.canvas.parentElement.classList.toggle('scene-labels-below',this.width<2*Math.max(...this.labelEls.filter(a=>a.layer!==undefined).map(a=>a.width),0)+300);this.packetLabelSize=null;}
  reset(){this.angle=.13;this.pitch=.34;this.zoom=1;this.auto=false;}
  setLayers(layers){this.layers=layers;this.selected=0;this.makeLabels();this.resize();}
  setSelected(index){this.selected=index;for(const a of this.labelEls)if(a.layer!==undefined)a.el.classList.toggle('active',a.layer===index);}
@@ -60,7 +60,21 @@ export class NetworkScene {
   const router=this.labelEls.find(a=>a.router);
   const groups=this.hosts.map((x,host)=>({host,x:this.project([x,1.7,0]).x,labels:this.labelEls.filter(a=>a.host===host&&a.layer!==undefined&&(this.spread||a.layer===this.selected))})).sort((a,b)=>a.x-b.x);
   const labelWidth=Math.max(...this.labelEls.filter(a=>a.layer!==undefined).map(a=>a.width),1);
-  const columns=[margin+labelWidth/2,this.width-margin-labelWidth/2];
+  const columns=this.modelBand?[margin+labelWidth/2,this.width-margin-labelWidth/2]:[
+   Math.max(margin+labelWidth/2,this.modelBounds.left-12-labelWidth/2),
+   Math.min(this.width-margin-labelWidth/2,this.modelBounds.right+12+labelWidth/2)
+  ];
+  const hostLabels=groups.map(g=>this.labelEls.find(a=>a.host===g.host&&a.layer===undefined));
+  const hostInset=this.modelBand?margin:labelWidth+24;
+  const hostXs=groups.map((g,i)=>Math.max(hostInset+hostLabels[i].width/2,Math.min(this.width-hostInset-hostLabels[i].width/2,this.project([this.hosts[g.host],this.layerY(0)+.139,0]).x)));
+  const hostSeparation=(hostLabels[0].width+hostLabels[1].width)/2+12;
+  if(hostXs[1]-hostXs[0]<hostSeparation){
+   const middle=Math.max(hostInset+hostLabels[0].width/2+hostSeparation/2,Math.min(this.width-hostInset-hostLabels[1].width/2-hostSeparation/2,(hostXs[0]+hostXs[1])/2));
+   hostXs[0]=middle-hostSeparation/2;hostXs[1]=middle+hostSeparation/2;
+  }
+  const stackTop=Math.min(...this.hosts.flatMap(x=>[-1.23,1.23].flatMap(dx=>[-.75,.78].map(z=>this.project([x+dx,this.layerY(0)+.139,z]).y))));
+  const hostYs=hostLabels.map(host=>Math.max(headingBottom+host.height/2+10,stackTop-host.height/2-12));
+  const hostBottom=Math.max(...hostYs.map((y,i)=>y+hostLabels[i].height/2));
   let lowest=0;
   for(const a of this.labelEls)if(a.layer!==undefined){const visible=this.spread||a.layer===this.selected;a.el.style.display=visible?'':'none';a.line.style.display=visible?'':'none';}
   groups.forEach((g,column)=>{
@@ -68,7 +82,7 @@ export class NetworkScene {
    const entries=g.labels.map(a=>({...a,anchor:this.project([this.hosts[a.host],this.layerY(a.layer)+.02,.78])})).sort((a,b)=>a.anchor.y-b.anchor.y);
    if(!entries.length)return;
    const height=Math.max(...entries.map(a=>a.height)),gap=height+7;
-   const top=(this.modelBand?this.modelBand.bottom:headingBottom)+host.height+28+height/2,bottom=this.height-88-router.height-18-height/2;
+   const top=Math.max((this.modelBand?this.modelBand.bottom:headingBottom)+28,hostBottom+12)+height/2,bottom=this.height-88-router.height-18-height/2;
    const ys=entries.map((a,i)=>this.modelBand?top+i*gap:a.anchor.y);
    for(let i=1;i<ys.length;i++)ys[i]=Math.max(ys[i],ys[i-1]+gap);
    const shift=this.modelBand?0:entries.reduce((sum,a,i)=>sum+a.anchor.y-ys[i],0)/entries.length;
@@ -85,11 +99,12 @@ export class NetworkScene {
     a.line.classList.toggle('active',a.layer===this.selected);
     lowest=Math.max(lowest,y+a.height/2);
    });
-   const hostAnchor=this.project([this.hosts[g.host],this.layerY(0)+.63,0]);
-   const hostY=Math.max((this.modelBand?this.modelBand.bottom:headingBottom)+host.height/2+10,Math.min(hostAnchor.y,ys[0]+offset-height/2-host.height/2-12));
-   host.el.style.transform=`translate(${columns[column]}px,${hostY}px) translate(-50%,-50%)`;
+   const hostAnchor=this.project([this.hosts[g.host],this.layerY(0)+.139,0]);
+   const hostY=hostYs[column];
+   const hostX=hostXs[column];
+   host.el.style.transform=`translate(${hostX}px,${hostY}px) translate(-50%,-50%)`;
    host.el.style.display=hostAnchor.visible?'':'none';
-   if(hostAnchor.visible)this.labelRects.push({x:columns[column]-host.width/2,y:hostY-host.height/2,width:host.width,height:host.height});
+   if(hostAnchor.visible)this.labelRects.push({x:hostX-host.width/2,y:hostY-host.height/2,width:host.width,height:host.height});
   });
   const p=this.project([0,-.39,1.55]);
   const routerY=Math.min(this.height-88-router.height/2,Math.max(p.y,lowest+router.height/2+18));
@@ -121,7 +136,7 @@ export class NetworkScene {
   this.modelBand=null;
   const labelWidth=Math.max(...this.labelEls.filter(a=>a.layer!==undefined).map(a=>a.width),0);
   if(!labelWidth||!this.layers.length)return;
-  const narrow=this.width<2*labelWidth+220;
+  const narrow=this.width<2*labelWidth+300;
   const inset=narrow?24:labelWidth+24,available=Math.max(1,this.width-2*inset);
   const points=[];
   // Fit the blocks between desktop labels; keep the whole model above narrow-screen labels.
@@ -132,16 +147,25 @@ export class NetworkScene {
   }
   const left=Math.min(...points.map(p=>p.x)),right=Math.max(...points.map(p=>p.x));
   let scale=Math.min(1,available/Math.max(1,right-left)),shiftY=0;
+  const heading=this.canvas.parentElement.querySelector('.scene-heading');
+  const hostHeight=Math.max(...this.labelEls.filter(a=>a.host!==undefined&&a.layer===undefined).map(a=>a.height),32);
+  const top=(heading?heading.offsetTop+heading.offsetHeight:110)+hostHeight+30;
+  const modelTop=Math.min(...points.map(p=>p.y)),modelBottom=Math.max(...points.map(p=>p.y));
   if(narrow){
-   const heading=this.canvas.parentElement.querySelector('.scene-heading');
-   const top=(heading?heading.offsetTop+heading.offsetHeight:110)+18;
    this.modelBand={top,bottom:top+190};
-   const modelTop=Math.min(...points.map(p=>p.y)),modelBottom=Math.max(...points.map(p=>p.y));
    scale=Math.min(scale,190/Math.max(1,modelBottom-modelTop));
    shiftY=1-(this.modelBand.top+this.modelBand.bottom)/this.height-scale*(1-(modelTop+modelBottom)/this.height);
+  }else{
+   const bottom=this.height-120;
+   scale=Math.min(scale,Math.max(1,bottom-top)/Math.max(1,modelBottom-modelTop));
+   const projectedTop=(modelTop-this.height/2)*scale+this.height/2;
+   const projectedBottom=(modelBottom-this.height/2)*scale+this.height/2;
+   const offset=Math.max(top-projectedTop,Math.min(bottom-projectedBottom,0));
+   shiftY=-2*offset/this.height;
   }
   const center=(left+right)/2,shift=scale*(1-2*center/this.width);
   this.projectionFit={scale,shift,shiftY};
+  this.modelBounds={left:(left-this.width/2)*scale+this.width/2+shift*this.width/2,right:(right-this.width/2)*scale+this.width/2+shift*this.width/2};
   for(let col=0;col<4;col++){
    const offset=col*4;
    this.vp[offset]=this.vp[offset]*scale+this.vp[offset+3]*shift;

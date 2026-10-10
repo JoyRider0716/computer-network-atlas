@@ -17,6 +17,7 @@ for(const [width,height,labelWidth] of [[296,780,100],[366,880,132],[818,640,150
     if(scene.modelBand){
      assert.ok(point.y>=scene.modelBand.top-.01&&point.y<=scene.modelBand.bottom+.01,'Narrow-screen blocks must stay above labels');
     }else{
+     assert.ok(point.y>=125+32+30-.01,'Blocks must leave space for host information above them');
      assert.ok(point.x>=labelWidth+24-.01&&point.x<=width-labelWidth-24+.01,'Blocks must leave room for both outer label columns');
     }
    }
