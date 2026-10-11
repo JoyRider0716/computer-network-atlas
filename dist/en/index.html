@@ -39,7 +39,7 @@
       </section>
       <section class="journey">
         <div class="journey-top"><div><span class="eyebrow" id="journey-eyebrow">02 / COMMUNICATION</span><h3 id="journey-title">Communication flow</h3></div><div class="journey-options"><label>Scenario<select id="scenario"><option value="http">HTTP / TCP encapsulation</option><option value="dns">DNS / UDP encapsulation</option></select></label><button class="quiet" id="restart" title="Restart">↺</button></div></div>
-        <div class="playback"><button class="play-button" id="play"><span>▶</span> Play</button><button class="step-button" id="next-step">Next →</button><div class="play-progress"><span id="step-counter">Ready to start</span><div class="progress-track"><i id="progress-fill"></i></div></div><select id="speed" aria-label="Playback speed"><option value="1">1× speed</option><option value="1.8">1.8× speed</option><option value="0.65">0.65× speed</option></select></div>
+        <div class="playback"><button class="play-button" id="play"><span>▶</span> Play</button><button class="step-button" id="next-step">Next →</button><div class="play-progress"><span id="step-counter">Ready to start</span><div class="progress-track"><i id="progress-fill"></i></div></div><span id="speed">1 s / step</span></div>
         <div class="step-detail" aria-live="polite"><span class="step-number" id="step-number">00</span><div><h4 id="step-title">Sender prepares data</h4><p id="step-description">Press Play to watch a message pass through both host stacks.</p></div></div>
         <div id="packet-structure" class="packet-structure"></div>
         <p class="journey-footnote" id="journey-footnote">Teaching model: DNS lookup, ARP and TCP establishment are omitted; the intermediate device is a router.</p>

@@ -72,3 +72,5 @@ html[lang=en] .relation-caption{padding:0 16px;line-height:1.6}
 /* On narrow screens, show the model above the two outer label columns. */
 .scene.scene-labels-below{height:780px;min-height:780px}
 html[lang=en] .scene.scene-labels-below{height:880px;min-height:880px}
+
+.router-label.active{color:#fbcea5}.label-connectors path.packet-connector{stroke:#ff716b;stroke-width:1.5;opacity:.9}

@@ -39,7 +39,7 @@ export function buildJourney(ls, scenario) {
         ? '按协议约定的编码和格式表示数据。本例没有独立的表示层首部。'
         : '管理本次交互的状态；在这个示例中，会话功能由应用及相关协议实现，没有独立的会话层首部。';
     }
-    steps.push({title: `发送端 · ${l.name}`, description, layer: i, host: 0, headers: headers.map(x => ({...x})), tag: l.unit});
+    steps.push({title: `发送端 · ${l.name}`, description, layer: i, host: 0, headers: headers.map(x => ({...x})), tag: packetTag(headers, l.id === 'physical')});
   }
 
   const ipHeaders = headers.filter(h => h.kind !== 'link').map(h => h.kind === 'network' ? {...h, text: 'IP头 · TTL 63'} : {...h});
@@ -56,6 +56,7 @@ export function buildJourney(ls, scenario) {
     title: '第二段链路 · 重新封装并发送',
     description: '路由器已通过ARP获得同一子网上主机B的MAC地址。用右接口MAC作源地址、主机B的MAC作目的地址，封装新帧并重新计算FCS，经第二段以太网链路发送。',
     bridge: true,
+    host: 1,
     layer: n - 1,
     headers: secondHeaders,
     tag: '新帧 · R右 → B'
@@ -88,7 +89,67 @@ export function buildJourney(ls, scenario) {
         ? '按应用的交互规则更新会话状态。'
         : '按约定的编码和格式解释收到的数据。';
     }
-    steps.push({title: `接收端 · ${l.name}`, description, layer: i, host: 1, headers: headers.map(x => ({...x})), tag: appLayer(l) ? '成功交付' : l.unit});
+    steps.push({title: `接收端 · ${l.name}`, description, layer: i, host: 1, headers: headers.map(x => ({...x})), tag: appLayer(l) ? `${app} · 成功交付` : packetTag(headers, l.id === 'physical')});
   }
+  return steps;
+}
+
+function packetTag(headers, physical = false) {
+  if (physical) return '比特 / 信号';
+  if (headers.some(h => h.kind === 'link')) return '以太网帧';
+  if (headers.some(h => h.kind === 'network')) return 'IP分组';
+  const transport = headers.find(h => h.kind === 'transport');
+  if (transport) return transport.text.startsWith('UDP') ? 'UDP数据报' : 'TCP报文段';
+  return headers.find(h => h.kind === 'payload').text;
+}
+
+// Use the model's actual layers for every lab message, in either direction.
+export function buildTransportJourney(ls, lab, key) {
+  const transport = ls.findIndex(l => l.id.includes('transport'));
+  const network = ls.findIndex(l => l.id === 'network' || l.id === 'internet');
+  const protocol = key === 'udp' ? 'UDP' : 'TCP';
+  const initial = key === 'close' ? ['ESTABLISHED', 'ESTABLISHED']
+    : key === 'udp' ? ['无TCP连接状态', '等待数据报'] : ['CLOSED', 'LISTEN'];
+  const sentStates = {
+    handshake: [['SYN-SENT', 'LISTEN'], ['SYN-SENT', 'SYN-RECEIVED'], ['ESTABLISHED', 'SYN-RECEIVED']],
+    close: [['FIN-WAIT-1', 'ESTABLISHED'], ['FIN-WAIT-1', 'CLOSE-WAIT'], ['FIN-WAIT-2', 'LAST-ACK'], ['TIME-WAIT', 'LAST-ACK']]
+  };
+  const steps = [];
+  lab.steps.forEach((message, messageIndex) => {
+    const from = message.direction === -1 ? 1 : 0, to = 1 - from;
+    const transit = sentStates[key]?.[messageIndex] || [message.states[0], ...(messageIndex ? lab.steps[messageIndex - 1].states.slice(1) : initial.slice(1))];
+    const transportHeaders = [{text: `${protocol} · ${message.tag.split(' · ')[0]}`, kind: 'transport'}];
+    const ipHeaders = ttl => [{text: `IP头 · TTL ${ttl}`, kind: 'network'}, ...transportHeaders];
+    const frameHeaders = (ttl, second) => [{text: second ? (to ? '帧头 · R右 → B' : '帧头 · R左 → A') : (from ? '帧头 · B → R右' : '帧头 · A → R左'), kind: 'link'}, ...ipHeaders(ttl), {text: 'FCS', kind: 'link'}];
+    const add = (location, phase, headers, completed = false) => steps.push({
+      ...location, messageIndex, wire: message.wire,
+      title: `${protocol} · ${completed ? message.title : `${from ? 'B → A' : 'A → B'} · ${message.tag.split(' · ')[0]}`} · ${phase}`,
+      description: completed ? message.description : `${phase}：${message.wire.replace(/\n/g, ' · ')}。`,
+      headers, tag: `${packetTag(headers, !location.router && !location.bridge && !location.link && ls[location.layer]?.id === 'physical')} · ${key === 'udp' && !completed ? message.tag.split(' · ')[0] : message.tag}`,
+      states: completed ? [...message.states] : [...transit], completed,
+      drop: completed && Boolean(message.drop), delay: completed && Boolean(message.delay)
+    });
+    // A delayed datagram resumes on the second link, rather than being sent again.
+    const resume = key === 'udp' && messageIndex === 3;
+    if (!resume) {
+      for (let layer = transport; layer < ls.length; layer++) {
+        const headers = layer === transport ? transportHeaders : layer === network ? ipHeaders(64) : frameHeaders(64, false);
+        add({host: from, layer}, `发送端 · ${ls[layer].name}`, headers);
+      }
+      if (message.drop) {
+        add({host: from, layer: ls.length - 1, link: true}, '链路中丢失', frameHeaders(64, false), true);
+        return;
+      }
+      add({router: true, layer: network}, '路由器 · 检查IP并选择下一跳', ipHeaders(63));
+    }
+    add({host: to, bridge: true, layer: ls.length - 1}, message.delay ? '链路中延迟' : '第二段链路 · 重新封装并发送', frameHeaders(63, true), Boolean(message.delay));
+    if (message.delay) return;
+    for (let layer = ls.length - 1; layer >= transport; layer--) {
+      const id = ls[layer].id;
+      // Receiving layers show their output: frame → IP → transport message.
+      const headers = id === 'physical' ? frameHeaders(63, true) : layer > network ? ipHeaders(63) : transportHeaders;
+      add({host: to, layer}, `接收端 · ${ls[layer].name}`, headers, layer === transport);
+    }
+  });
   return steps;
 }

@@ -43,12 +43,17 @@ doc.getElementById=id=>doc.querySelector('#'+id);doc.createElement=tag=>new Elem
 globalThis.document=doc;globalThis.window={scrollY:0,scrollTo(o){this.scrollY=o.top;}};
 globalThis.devicePixelRatio=1;globalThis.ResizeObserver=class{observe(){}};
 const frames=[];globalThis.requestAnimationFrame=fn=>frames.push(fn);
+let clockTime=0;globalThis.performance={now:()=>clockTime};
+const frame=time=>{clockTime=time;const pending=frames.splice(0);for(const fn of pending)fn(time);};
 globalThis.matchMedia=()=>({matches:false});
 const storage=new Map();globalThis.localStorage={getItem:key=>storage.get(key)||null,setItem:(k,v)=>storage.set(k,v)};
 globalThis.FormData=class{constructor(form){this.data=new Map();for(const el of [...form.querySelectorAll('input'),...form.querySelectorAll('select')]){if(el.attrs.type==='checkbox'&&!el.checked)continue;this.data.set(el.attrs.name,el.value);}}get(k){return this.data.get(k)??null;}has(k){return this.data.has(k);}};
 const el=id=>{const node=doc.getElementById(id);assert.ok(node,'Missing live element: '+id);return node;};
 const click=(selector)=>{const node=doc.querySelector(selector);assert.ok(node,'Missing control: '+selector);node.click();};
 
+const {NetworkScene}=await import(siteBase+'scene.js');
+let liveScene;const renderScene=NetworkScene.prototype.render;
+NetworkScene.prototype.render=function(){liveScene=this;return renderScene.call(this);};
 await import(siteBase+'app.js');
 assert.equal(el('layer-list').querySelectorAll('button').length,7);
 assert.equal(doc.querySelectorAll('[data-study-tab]').length,4);
@@ -59,9 +64,13 @@ click('[data-model="tcpip"]');assert.equal(el('layer-list').querySelectorAll('bu
 assert.ok(el('study-body').textContent.includes(text('字符、字节','Characters, bytes')));
 click('[data-layer="3"]');assert.ok(el('study-body').textContent.includes(text('发送时延','Transmission')));
 click('[data-view="transport"]');assert.ok(el('study-context').textContent.includes(text('传输层','Transport layer')));
-for(let i=0;i<3;i++)el('next-step').click();assert.ok(el('lab-state').textContent.includes('ESTABLISHED'));
-click('[data-lab="close"]');for(let i=0;i<3;i++)el('next-step').click();assert.ok(el('lab-state').textContent.includes('TIME-WAIT'));assert.ok(el('lab-state').textContent.includes('LAST-ACK'));
-el('next-step').click();assert.ok(el('lab-state').textContent.includes('CLOSED'));
+const {OSI,TCPIP,LABS}=await import(siteBase+'content.js');
+const {buildTransportJourney}=await import(siteBase+'flows.js');
+for(const _ of buildTransportJourney(TCPIP,LABS.handshake,'handshake'))el('next-step').click();assert.ok(el('lab-state').textContent.includes('ESTABLISHED'));
+click('[data-lab="close"]');const closeSteps=buildTransportJourney(TCPIP,LABS.close,'close');
+const lastAck=closeSteps.findIndex(s=>s.messageIndex===2&&s.completed);
+for(let i=0;i<=lastAck;i++)el('next-step').click();assert.ok(el('lab-state').textContent.includes('TIME-WAIT'));assert.ok(el('lab-state').textContent.includes('LAST-ACK'));
+for(let i=lastAck+1;i<closeSteps.length;i++)el('next-step').click();assert.ok(el('lab-state').textContent.includes('CLOSED'));
 click('[data-model="osi"]');assert.equal(el('layer-list').querySelectorAll('button').length,7);assert.ok(el('study-context').textContent.includes(text('传输层','Transport layer')));
 
 click('[data-study-tab="fields"]');click('[data-packet="ipv4"]');click('[data-field="ip-offset"]');assert.ok(el('study-body').textContent.includes(text('185 → 1480字节','185 → 1480 bytes')));
@@ -91,8 +100,32 @@ el('open-learning').click();assert.equal(el('explore-screen').hidden,false);asse
 const {ATLAS}=await import(siteBase+'protocol-data.js');
 for(const model of ['osi','tcpip']){click('[data-view="protocols"]');click('[data-atlas-model="'+model+'"]');for(const p of Object.values(ATLAS)){const {PROTOCOL_LAYER_KEYS,protocolIds}=await import(siteBase+'protocol-data.js');const layer=PROTOCOL_LAYER_KEYS[model].find(l=>protocolIds(model,l).includes(p.id));click('[data-atlas-layer="'+layer+'"]');click('[data-protocol="'+p.id+'"]');for(let i=0;i<p.steps.length;i++){click('[data-protocol-step="'+i+'"]');assert.ok(doc.querySelector('.protocol-step-detail').textContent.includes(p.steps[i].text));}if(english)assert.ok(!/\p{Script=Han}/u.test(el('protocol-screen').textContent));assert.ok(doc.querySelector('[data-related="'+p.links[0].id+'"]'));}}
 click('[data-view="explore"]');
+// The same one-second clock drives labels, geometry and metadata in both models.
+for(const model of ['osi','tcpip']){
+ click('[data-model="'+model+'"]');el('scenario').value='dns';el('scenario').dispatch('change');
+ el('play').click();const started=clockTime;
+ assert.equal(el('step-number').textContent,'01');
+ const firstPosition=liveScene.packetPosition();
+ frame(started+999);assert.equal(el('step-number').textContent,'01');
+ assert.deepEqual(liveScene.packetPosition(),firstPosition,'Packet must hold at the layer until the next second');
+ frame(started+1000);assert.equal(el('step-number').textContent,'02');
+ assert.equal(liveScene.packet.anchor.layer,1);
+ assert.equal(el('packet-label').textContent,liveScene.packet.tag);
+ assert.equal(doc.querySelectorAll('.layer-label').filter(l=>l.className.includes('active')).length,1);
+ el('play').click();const paused=liveScene.packetPosition();
+ frame(started+2300);assert.deepEqual(liveScene.packetPosition(),paused);
+ el('spread').click();frame(started+2310);
+ assert.equal(liveScene.packetPosition()[1],liveScene.layerY(1)+.22,'Paused packet must follow compact/spread geometry');
+ el('spread').click();
+ el('next-step').click();assert.equal(el('step-number').textContent,'03');
+ el('play').click();frame(clockTime+999);assert.equal(el('step-number').textContent,'03');
+ frame(clockTime+1);assert.equal(el('step-number').textContent,'04');
+ assert.ok(el('packet-label').textContent.includes(model==='osi'?'UDP':text('以太网帧','Ethernet frame')));
+ el('restart').click();assert.equal(el('packet-label').hidden,true);
+ assert.equal(doc.querySelector('.packet-connector').style.display,'none');
+}
 el('help').click();assert.equal(el('help-dialog').open,true);doc.querySelector('.dialog-close').click();assert.equal(el('help-dialog').open,false);
 // Exercise one compatible-rendering frame and DOM label positioning without a real browser.
-frames[0](100);assert.ok(doc.querySelector('.layer-label').style.transform.includes('translate'));
+frame(clockTime+100);assert.ok(doc.querySelector('.layer-label').style.transform.includes('translate'));
 assert.ok(!/NaN|undefined/.test(doc.querySelector('.layer-label').style.transform));
 console.log((english?'EN ':'ZH ')+'PASS: DOM wiring smoke checks: model/layer switches, transport labs, field explorer, 5 calculators, learning navigation, all 32 illustrated protocols in both models, diagram steps, relationships, filtering and help. Browser layout checks run separately.');

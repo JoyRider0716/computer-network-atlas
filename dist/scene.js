@@ -1,4 +1,5 @@
 // 轻量WebGL场景：全部几何由代码生成，无外部模型或CDN依赖。
+import {stepPoint} from './playback.js';
 export const vec = {
  sub:(a,b)=>a.map((v,i)=>v-b[i]), add:(a,b)=>a.map((v,i)=>v+b[i]),
  dot:(a,b)=>a.reduce((n,v,i)=>n+v*b[i],0),
@@ -43,11 +44,15 @@ export class NetworkScene {
  resize(){const rect=this.canvas.parentElement.getBoundingClientRect();this.width=rect.width;this.height=rect.height;const dpr=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.round(this.width*dpr);this.canvas.height=Math.round(this.height*dpr);this.dpr=dpr;this.measureLabels();this.canvas.parentElement.classList.toggle('scene-labels-below',this.width<2*Math.max(...this.labelEls.filter(a=>a.layer!==undefined).map(a=>a.width),0)+300);this.packetLabelSize=null;}
  reset(){this.angle=.13;this.pitch=.34;this.zoom=1;this.auto=false;}
  setLayers(layers){this.layers=layers;this.selected=0;this.makeLabels();this.resize();}
- setSelected(index){this.selected=index;for(const a of this.labelEls)if(a.layer!==undefined)a.el.classList.toggle('active',a.layer===index);}
+ setSelected(index){this.selected=index;this.focus=null;this.syncFocus();}
+ setFocus(step){this.selected=step.layer;this.focus=step;this.syncFocus();}
+ isActive(layer,host){return layer===this.selected&&(!this.focus||(!this.focus.router&&!this.focus.bridge&&!this.focus.link&&this.focus.host===host));}
+ syncFocus(){for(const a of this.labelEls){if(a.layer!==undefined)a.el.classList.toggle('active',this.isActive(a.layer,a.host));if(a.router)a.el.classList.toggle('active',Boolean(this.focus?.router));}}
+ packetPosition(){return this.packet.anchor?stepPoint(this,this.packet.anchor):this.packet.position;}
  layerY(i){const n=this.layers.length;return this.spread?.82+(n-1-i)*(n===7?.47:.9):.9+(n-1-i)*.24;}
- makeLabels(){this.labelsRoot.replaceChildren();this.labelEls=[];this.labelLines=document.createElementNS('http://www.w3.org/2000/svg','svg');this.labelLines.classList.add('label-connectors');this.labelLines.setAttribute('aria-hidden','true');this.labelsRoot.appendChild(this.labelLines);for(let h=0;h<2;h++){
-   const host=document.createElement('div');host.className='model-label host-label';host.innerHTML=`<b>${h?'B':'A'}</b> ${h?'接收主机':'发送主机'}<small>${h?'192.168.2.20':'192.168.1.10'} /24</small>`;this.labelsRoot.appendChild(host);this.labelEls.push({el:host,host:h});
-   this.layers.forEach((l,i)=>{const el=document.createElement('button');el.className='model-label layer-label';el.innerHTML=`<span class="layer-index">L${l.number}</span><span class="layer-name">${l.name}</span>`;el.style.setProperty('--label-color',l.color);el.setAttribute('aria-label',`${h?'接收':'发送'}主机：${l.name}`);el.addEventListener('click',()=>this.onSelect(i));const line=document.createElementNS('http://www.w3.org/2000/svg','path');this.labelLines.appendChild(line);this.labelsRoot.appendChild(el);this.labelEls.push({el,line,layer:i,host:h});});
+ makeLabels(){this.labelsRoot.replaceChildren();this.labelEls=[];this.labelLines=document.createElementNS('http://www.w3.org/2000/svg','svg');this.labelLines.classList.add('label-connectors');this.labelLines.setAttribute('aria-hidden','true');this.labelsRoot.appendChild(this.labelLines);this.packetLine=document.createElementNS('http://www.w3.org/2000/svg','path');this.packetLine.classList.add('packet-connector');this.labelLines.appendChild(this.packetLine);for(let h=0;h<2;h++){
+   const host=document.createElement('div');host.className='model-label host-label';host.innerHTML=`<b>${h?'B':'A'}</b> 主机<small>${h?'192.168.2.20':'192.168.1.10'} /24</small>`;this.labelsRoot.appendChild(host);this.labelEls.push({el:host,host:h});
+   this.layers.forEach((l,i)=>{const el=document.createElement('button');el.className='model-label layer-label';el.innerHTML=`<span class="layer-index">L${l.number}</span><span class="layer-name">${l.name}</span>`;el.style.setProperty('--label-color',l.color);el.setAttribute('aria-label',`主机 ${h?'B':'A'}：${l.name}`);el.addEventListener('click',()=>this.onSelect(i));const line=document.createElementNS('http://www.w3.org/2000/svg','path');this.labelLines.appendChild(line);this.labelsRoot.appendChild(el);this.labelEls.push({el,line,layer:i,host:h});});
   }const router=document.createElement('div');router.className='model-label router-label';router.innerHTML='路由器<small>IPv4 转发 · TTL 减 1</small>';this.labelsRoot.appendChild(router);this.labelEls.push({el:router,router:true});this.measureLabels();}
  measureLabels(){for(const a of this.labelEls){const display=a.el.style.display;a.el.style.display='';a.width=a.el.offsetWidth;a.height=a.el.offsetHeight;a.el.style.display=display;}}
  renderLabels(){
@@ -94,9 +99,9 @@ export class NetworkScene {
     if(a.anchor.visible)this.labelRects.push({x:x-a.width/2,y:y-a.height/2,width:a.width,height:a.height});
     const edge=x+(a.anchor.x>=x?1:-1)*a.width/2;
     a.line.setAttribute('d',`M ${a.anchor.x} ${a.anchor.y} L ${edge} ${y}`);
-    a.line.setAttribute('stroke',a.layer===this.selected?'#edb47c':this.layers[a.layer].color);
+    a.line.setAttribute('stroke',this.isActive(a.layer,a.host)?'#edb47c':this.layers[a.layer].color);
     a.line.style.display=a.anchor.visible&&Math.hypot(a.anchor.x-edge,a.anchor.y-y)>12?'':'none';
-    a.line.classList.toggle('active',a.layer===this.selected);
+    a.line.classList.toggle('active',this.isActive(a.layer,a.host));
     lowest=Math.max(lowest,y+a.height/2);
    });
    const hostAnchor=this.project([this.hosts[g.host],this.layerY(0)+.139,0]);
@@ -115,15 +120,16 @@ export class NetworkScene {
  }
  renderPacketLabel(){
   const label=document.getElementById('packet-label');
-  if(!this.packet){label.hidden=true;return;}
+  if(!this.packet){label.hidden=true;this.packetLine.style.display='none';return;}
   label.hidden=false;
   if(label.textContent!==this.packet.tag){label.textContent=this.packet.tag;this.packetLabelSize=null;}
   if(!this.packetLabelSize)this.packetLabelSize={width:label.offsetWidth,height:label.offsetHeight};
-  const {width,height}=this.packetLabelSize,p=this.project(this.packet.position);
+  const point=this.packetPosition();
+  const {width,height}=this.packetLabelSize,p=this.project(point);
   const clampX=x=>Math.max(width/2+12,Math.min(this.width-width/2-12,x));
   const clampY=y=>Math.max(this.labelTop+height/2,Math.min(this.height-88-height/2,y));
   const corners=[];
-  for(const x of [-.08,.08])for(const y of [-.08,.08])for(const z of [-.08,.08])corners.push(this.project(this.packet.position.map((v,i)=>v+[x,y,z][i])));
+  for(const x of [-.08,.08])for(const y of [-.08,.08])for(const z of [-.08,.08])corners.push(this.project(point.map((v,i)=>v+[x,y,z][i])));
   const bounds={left:Math.min(...corners.map(v=>v.x)),right:Math.max(...corners.map(v=>v.x)),top:Math.min(...corners.map(v=>v.y)),bottom:Math.max(...corners.map(v=>v.y))};
   const gap=6;
   const desired={x:clampX(p.x),y:clampY(bounds.top-gap-height/2)};
@@ -140,6 +146,8 @@ export class NetworkScene {
   const positions=candidates.filter(clear).sort((a,b)=>distance(a)-distance(b)||Math.hypot(a.x-desired.x,a.y-desired.y)-Math.hypot(b.x-desired.x,b.y-desired.y));
   const position=positions[0]||desired;
   label.style.transform=`translate(${position.x}px,${position.y}px) translate(-50%,-50%)`;
+  const edge={x:Math.max(position.x-width/2,Math.min(position.x+width/2,p.x)),y:Math.max(position.y-height/2,Math.min(position.y+height/2,p.y))};
+  this.packetLine.setAttribute('d',`M ${p.x} ${p.y} L ${edge.x} ${edge.y}`);this.packetLine.style.display=p.visible?'':'none';
  }
  camera(){const aspect=this.width/this.height;const radius=Math.max(12.7,13/aspect)*this.zoom;const target=[0,1.7,0];this.eye=[Math.sin(this.angle)*Math.cos(this.pitch)*radius,target[1]+Math.sin(this.pitch)*radius,Math.cos(this.angle)*Math.cos(this.pitch)*radius];this.target=target;this.vp=multiply(perspective(Math.PI/4,aspect,.1,100),lookAt(this.eye,target));this.fitModelBetweenLabels();}
  fitModelBetweenLabels(){
@@ -189,10 +197,10 @@ export class NetworkScene {
    add([x,.62,1.54],[.56,.12,.04],'#538c80');add([x+.63,.33,1.625],[.045,.045,.012],'#8dccad');add([x,.54,-.73],[2.36,.27,.25],'#426575');
    add([x,.72,1.65],[1.13,.52,.085],'#17313f');add([x,.72,1.70],[1.0,.39,.012],'#346e73');add([x-.16,.82,1.71],[.48,.018,.014],'#78b2aa');add([x-.24,.75,1.71],[.32,.018,.014],'#619d99');add([x-.29,.68,1.71],[.22,.018,.014],'#619d99');
    for(const dx of [-1.15,1.15])add([x+dx,1.98,-.57],[.045,3.3,.045],'#436c76');
-   this.layers.forEach((l,i)=>{const active=i===this.selected;const y=this.layerY(i);const color=active?[.86,.58,.34]:mix(rgb(l.color),[.14,.26,.31],.32);add([x,y,0],[2.46,.22,1.5],color,i);add([x,y+.115,0],[2.38,.024,1.42],active?'#e6bb81':mix(rgb(l.color),[.61,.78,.74],.28));add([x-1.16,y,.755],[.05,.10,.015],active?'#ffdc9d':'#b7d8cf');});
+   this.layers.forEach((l,i)=>{const active=this.isActive(i,this.hosts.indexOf(x));const y=this.layerY(i);const color=active?[.86,.58,.34]:mix(rgb(l.color),[.14,.26,.31],.32);add([x,y,0],[2.46,.22,1.5],color,i);add([x,y+.115,0],[2.38,.024,1.42],active?'#e6bb81':mix(rgb(l.color),[.61,.78,.74],.28));add([x-1.16,y,.755],[.05,.10,.015],active?'#ffdc9d':'#b7d8cf');});
   }
-  add([0,.09,1.05],[1.55,.26,.95],'#344e5e');add([0,.235,1.05],[1.51,.035,.91],'#567583');for(let i=0;i<4;i++){add([-.44+i*.29,.11,1.534],[.17,.085,.015],'#152c35');add([-.41+i*.29,.17,1.55],[.03,.025,.012],'#8bc4a4');}
-  if(this.packet){const point=this.packet.position;add(point,[.16,.16,.16],this.packet.drop?'#c43e4b':'#ff716b');}
+  add([0,.09,1.05],[1.55,.26,.95],this.focus?.router?'#bd8657':'#344e5e');add([0,.235,1.05],[1.51,.035,.91],this.focus?.router?'#e6bb81':'#567583');for(let i=0;i<4;i++){add([-.44+i*.29,.11,1.534],[.17,.085,.015],'#152c35');add([-.41+i*.29,.17,1.55],[.03,.025,.012],'#8bc4a4');}
+  if(this.packet){const point=this.packetPosition();add(point,[.16,.16,.16],this.packet.drop?'#c43e4b':'#ff716b');}
   return out;
  }
  line(points,color,alpha=1){if(this.gl){const gl=this.gl,arr=[];for(const p of points)arr.push(...p,0,1,0);gl.bindBuffer(gl.ARRAY_BUFFER,this.lineBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(arr),gl.DYNAMIC_DRAW);this.attributes();gl.uniform3fv(this.uniforms.Pos,[0,0,0]);gl.uniform3fv(this.uniforms.Size,[1,1,1]);gl.uniform4fv(this.uniforms.Color,[...color,alpha]);gl.uniform1f(this.uniforms.Unlit,1);gl.drawArrays(gl.LINES,0,points.length);}else{const c=this.ctx;c.strokeStyle=`rgba(${color.map(x=>Math.round(x*255)).join(',')},${alpha})`;c.lineWidth=1;for(let i=0;i<points.length;i+=2){const a=this.project(points[i]),b=this.project(points[i+1]);c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);c.stroke();}}}
@@ -202,7 +210,7 @@ export class NetworkScene {
   const cables=[[-3.45,.035,1.14],[-1.0,.035,1.14],[-1.0,.035,1.14],[0,.035,1.14],[0,.035,1.14],[1.0,.035,1.14],[1.0,.035,1.14],[3.45,.035,1.14]];this.line(cables,rgb('#62b3a2'),.85);
   if(this.gl){const gl=this.gl;gl.bindBuffer(gl.ARRAY_BUFFER,this.boxBuffer);this.attributes();gl.uniform1f(this.uniforms.Unlit,0);for(const b of this.objects){gl.uniform3fv(this.uniforms.Pos,b.pos);gl.uniform3fv(this.uniforms.Size,b.size);gl.uniform4fv(this.uniforms.Color,[...b.color,1]);gl.drawArrays(gl.TRIANGLES,0,36);}}
   else this.renderFallback();
-  if(this.layers.length){const y=this.layerY(this.selected)+.16;const peer=[];for(let x=-2.15;x<2.15;x+=.28)peer.push([x,y,0],[x+.13,y,0]);this.line(peer,rgb('#9f9980'),.42);}
+  if(this.layers.length&&!this.focus){const y=this.layerY(this.selected)+.16;const peer=[];for(let x=-2.15;x<2.15;x+=.28)peer.push([x,y,0],[x+.13,y,0]);this.line(peer,rgb('#9f9980'),.42);}
   this.renderLabels();
   this.renderPacketLabel();
  }

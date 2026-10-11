@@ -39,7 +39,7 @@
       </section>
       <section class="journey">
         <div class="journey-top"><div><span class="eyebrow" id="journey-eyebrow">02 / 通信过程</span><h3 id="journey-title">通信过程</h3></div><div class="journey-options"><label>场景<select id="scenario"><option value="http">HTTP / TCP 封装</option><option value="dns">DNS / UDP 封装</option></select></label><button class="quiet" id="restart" title="重新开始">↺</button></div></div>
-        <div class="playback"><button class="play-button" id="play"><span>▶</span> 播放过程</button><button class="step-button" id="next-step">下一步 →</button><div class="play-progress"><span id="step-counter">准备开始</span><div class="progress-track"><i id="progress-fill"></i></div></div><select id="speed" aria-label="播放速度"><option value="1">1× 速度</option><option value="1.8">1.8× 速度</option><option value="0.65">0.65× 速度</option></select></div>
+        <div class="playback"><button class="play-button" id="play"><span>▶</span> 播放过程</button><button class="step-button" id="next-step">下一步 →</button><div class="play-progress"><span id="step-counter">准备开始</span><div class="progress-track"><i id="progress-fill"></i></div></div><span id="speed">1 秒 / 步</span></div>
         <div class="step-detail" aria-live="polite"><span class="step-number" id="step-number">00</span><div><h4 id="step-title">发送端准备数据</h4><p id="step-description">点击播放，观察消息怎样穿过两台主机的网络层。</p></div></div>
         <div id="packet-structure" class="packet-structure"></div>
         <p class="journey-footnote" id="journey-footnote">教学示意：忽略DNS解析、ARP查询与TCP建连；中间设备为路由器。</p>

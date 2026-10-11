@@ -1,13 +1,14 @@
 import {OSI,TCPIP,PROTOCOLS,LABS} from './content.js';
 import {NetworkScene} from './scene.js';
-import {buildJourney} from './flows.js';
+import {buildJourney,buildTransportJourney} from './flows.js';
+import {advanceClock} from './playback.js';
 import {LearningHub} from './learning.js';
 import {ProtocolAtlas} from './protocols.js';
 import {CHAPTERS,chapterKeys} from './curriculum.js';
 
 const $=id=>document.getElementById(id);
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const state={model:'osi',view:'explore',selected:0,scenario:'http',lab:'handshake',index:-1,playing:false,elapsed:0,last:0,speed:1};
+const state={model:'osi',view:'explore',selected:0,scenario:'http',lab:'handshake',index:-1,playing:false,elapsed:0,last:0};
 const openState=new Map();
 const layers=()=>state.model==='osi'?OSI:TCPIP;
 const scene=new NetworkScene($('scene-canvas'),$('scene-labels'),index=>selectLayer(index,true));
@@ -31,41 +32,60 @@ function inspectorLayer(){const l=layers()[state.selected];const k=l.id;const ht
   <footer class="inspector-footer">OSI 的功能划分可帮助理解协议职责；具体协议的承载方式见各条目。<br>参考：<a href="https://www.rfc-editor.org/rfc/rfc1122.html" target="_blank" rel="noopener noreferrer">RFC 1122</a></footer>`;
   $('inspector-content').innerHTML=html;saveAccordions();$('go-lab')?.addEventListener('click',()=>setView('transport'));$('go-deep').addEventListener('click',()=>{pause();hub.jump('theory');});
 }
-function renderTransport(){const lab=LABS[state.lab];$('inspector-content').innerHTML=`<header class="inspector-heading"><div class="focus-label">03 / 传输实验<span class="layer-pill">TCP & UDP</span></div><h2>连接与交付</h2><span class="en">TRANSPORT LAB</span><p class="focus-question">查看每一步的报文字段和连接状态。</p></header><div class="lab-select">${Object.entries(LABS).map(([key,l])=>`<button data-lab="${key}" class="${key===state.lab?'active':''}">${l.title}<span>→</span></button>`).join('')}</div><p class="test-note">选择实验后，在模型下方播放或逐步推进。网络链路在图中被简化，实验不发出真实报文。</p><div id="lab-state"></div>
+function renderTransport(){const lab=LABS[state.lab];$('inspector-content').innerHTML=`<header class="inspector-heading"><div class="focus-label">03 / 传输实验<span class="layer-pill">${state.lab==='udp'?'UDP':'TCP'}</span></div><h2>连接与交付</h2><span class="en">TRANSPORT LAB</span><p class="focus-question">查看每一步的报文字段和连接状态。</p></header><div class="lab-select">${Object.entries(LABS).map(([key,l])=>`<button data-lab="${key}" class="${key===state.lab?'active':''}">${l.title}<span>→</span></button>`).join('')}</div><p class="test-note">选择实验后，在模型下方播放或逐步推进。网络链路在图中被简化，实验不发出真实报文。</p><div id="lab-state"></div>
  ${section('transport-diff','01','TCP与UDP如何选择？','<table class="mapping-table"><tr><th>特性</th><th>TCP</th><th>UDP</th></tr><tr><td>数据形式</td><td>字节流</td><td>数据报</td></tr><tr><td>消息边界</td><td>不保留</td><td>保留</td></tr><tr><td>可靠有序</td><td>提供</td><td>自身不保证</td></tr><tr><td>连接握手</td><td>需要</td><td>无需TCP式握手</td></tr><tr><td>首部</td><td>≥20字节</td><td>8字节</td></tr></table><p>TCP 提供可靠、有序的字节流；UDP 保留数据报边界，可靠性可由应用协议实现。选择取决于应用对交付、时延和消息边界的要求。</p>',true)}
  ${section('transport-protocols','02','协议说明',['tcp','udp','quic'].map(protocolMarkup).join(''))}
  ${section('transport-ack','03','ACK与ack到底有什么区别？','<p><b>ACK</b>：一个控制标志位，置1时说明确认字段有效。</p><p><b>ack</b>：确认号，是通常期待收到的下一个字节序号。例如收到seq=100的SYN后确认101，因为SYN消耗一个序号。</p><p><b>seq</b>：本段的序列号。TCP按字节编号，不是为每个包简单加1。</p>')}
  <footer class="inspector-footer">字段值为易读的教学示例；实际初始序列号不会固定为100与500。</footer>`;
  $('inspector-content').querySelectorAll('[data-lab]').forEach(btn=>btn.addEventListener('click',()=>setLab(btn.dataset.lab)));saveAccordions();updateLabState();}
-function updateLabState(){if(state.view!=='transport')return;const s=LABS[state.lab].steps[state.index];$('lab-state').innerHTML=`<div class="state-cards"><div class="state-card"><small>主机 A</small><code>${s?s.states[0]:state.lab==='close'?'ESTABLISHED':state.lab==='udp'?'无TCP连接状态':'CLOSED'}</code></div><div class="state-card"><small>主机 B</small><code>${s?s.states[1]:state.lab==='close'?'ESTABLISHED':state.lab==='udp'?'等待数据报':'LISTEN'}</code></div></div>${s?`<code class="wire">${escape(s.wire)}</code>`:'<p class="test-note">点击播放，开始观察报文与连接状态。</p>'}`;}
+function updateLabState(){if(state.view!=='transport')return;const s=currentSteps()[state.index];$('lab-state').innerHTML=`<div class="state-cards"><div class="state-card"><small>主机 A</small><code>${s?s.states[0]:state.lab==='close'?'ESTABLISHED':state.lab==='udp'?'无TCP连接状态':'CLOSED'}</code></div><div class="state-card"><small>主机 B</small><code>${s?s.states[1]:state.lab==='close'?'ESTABLISHED':state.lab==='udp'?'等待数据报':'LISTEN'}</code></div></div>${s?`<code class="wire">${escape(s.wire)}</code>`:'<p class="test-note">点击播放，开始观察报文与连接状态。</p>'}`;}
 function renderInspector(){if(state.view==='transport')renderTransport();else inspectorLayer();}
 
-function selectLayer(index,user=false){state.selected=index;scene.setSelected(index);hub.setLayer(layers()[index].id);renderLayers();if(user&&state.view!=='explore'){setView('explore');return;}if(user){pause();scene.packet=null;}if(state.view==='explore')inspectorLayer();if(user&&matchMedia('(max-width:640px)').matches){document.querySelector('.inspector').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'start'});}}
+function selectLayer(index,user=false){state.selected=index;scene.setSelected(index);hub.setLayer(layers()[index].id);renderLayers();if(user&&state.view!=='explore'){setView('explore');return;}if(user){pause();resetJourney();}if(state.view==='explore')inspectorLayer();if(user&&matchMedia('(max-width:640px)').matches){document.querySelector('.inspector').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'start'});}}
 function setModel(model){pause();state.model=model;protocolAtlas.setModel(model);state.selected=0;scene.packet=null;scene.setLayers(layers());scene.setSelected(0);document.querySelectorAll('[data-model]').forEach(b=>b.classList.toggle('active',b.dataset.model===model));$('model-caption').textContent=model==='osi'?'开放系统互连参考模型':'互联网协议体系';$('model-note').textContent=model==='osi'?'OSI 七层按通信功能划分；这里的层块用于表示各层的位置。':'TCP/IP 使用应用层、传输层、网际层和网络接口层。它与 OSI 的功能划分大致对应，协议归属还要结合实际承载方式。';$('scene-mode').textContent=model==='osi'?'OSI / 7 LAYERS':'TCP/IP / 4 LAYERS';if(state.view==='transport'){state.selected=layers().findIndex(l=>l.id.includes('transport'));scene.setSelected(state.selected);}hub.setLayer(layers()[state.selected].id);renderLayers();renderInspector();resetJourney();}
 function setView(view){pause();state.view=view;scene.packet=null;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('explore-screen').hidden=view==='protocols';$('protocol-screen').hidden=view!=='protocols';if(view==='protocols'){protocolAtlas.setModel(state.model);window.scrollTo({top:0,behavior:'instant'});return;}scene.resize();if(view==='transport'){state.selected=layers().findIndex(l=>l.id.includes('transport'));scene.setSelected(state.selected);renderLayers();}$('scene-title').textContent=view==='transport'?LABS[state.lab].title:'封装与逐跳转发';$('scene-subtitle').textContent=view==='transport'?LABS[state.lab].subtitle:'发送端向下封装 · 接收端向上解封装';$('scenario').parentElement.hidden=view==='transport';hub.setLayer(layers()[state.selected].id);renderInspector();resetJourney();}
 function setLab(lab){state.lab=lab;setView('transport');}
 
 
-const currentSteps=()=>state.view==='transport'?LABS[state.lab].steps:buildJourney(layers(),state.scenario);
+const currentSteps=()=>state.view==='transport'?buildTransportJourney(layers(),LABS[state.lab],state.lab):buildJourney(layers(),state.scenario);
 function renderPacket(headers){$('packet-structure').innerHTML=headers.map(h=>`<span class="packet-field ${h.kind}">${escape(h.text)}</span>`).join('');}
-function resetJourney(){state.index=-1;state.elapsed=0;scene.packet=null;$('progress-fill').style.width='0';$('step-counter').textContent='准备开始';$('step-number').textContent='00';$('step-title').textContent=state.view==='transport'?'传输实验准备':'发送端准备数据';$('step-description').textContent=state.view==='transport'?'选择右侧实验，然后播放或单步查看报文和状态。':'点击播放，观察消息怎样穿过两台主机的网络层。';$('journey-title').textContent=state.view==='transport'?LABS[state.lab].title:'通信过程';$('journey-footnote').textContent=state.view==='transport'?LABS[state.lab].footnote:'教学示意：忽略DNS解析、ARP查询与TCP建连；中间设备为路由器。';$('next-step').disabled=false;renderPacket(state.view==='transport'?[]:[{text:state.scenario==='dns'?'DNS查询':'HTTP请求',kind:'payload'}]);updatePlayButton();updateLabState();}
-function showStep(index){const steps=currentSteps();state.index=index;state.elapsed=0;const s=steps[index];$('step-title').textContent=s.title;$('step-description').textContent=s.description;$('step-number').textContent=(index+1).toString().padStart(2,'0');$('step-counter').textContent=`${index+1} / ${steps.length} 步`;$('progress-fill').style.width=`${(index+1)/steps.length*100}%`;$('next-step').disabled=index===steps.length-1;if(state.view!=='transport'){selectLayer(s.layer,false);renderPacket(s.headers);}else{renderPacket([{text:s.tag,kind:state.lab==='udp'?'transport':'payload'}]);updateLabState();}scene.packet={position:stepPoint(s),tag:s.tag,drop:s.drop};}
-function stepPoint(s){if(state.view==='transport')return [scene.hosts[s.direction===-1?0:1],scene.layerY(state.selected)+.2,.98];if(s.router)return [0,.5,1.05];if(s.bridge)return [scene.hosts[1],.35,1.05];return [scene.hosts[s.host],scene.layerY(s.layer)+.21,.94];}
-function interpolate(a,b,t){return a.map((v,i)=>v+(b[i]-v)*t);}
-function along(points,t){let lengths=[],sum=0;for(let i=1;i<points.length;i++){const d=Math.hypot(...points[i].map((v,k)=>v-points[i-1][k]));lengths.push(d);sum+=d;}let remaining=Math.max(0,Math.min(t,1))*sum;for(let i=0;i<lengths.length;i++){if(remaining<=lengths[i])return interpolate(points[i],points[i+1],lengths[i]?remaining/lengths[i]:1);remaining-=lengths[i];}return points.at(-1);}
-function animatePacket(t){const steps=currentSteps(),s=steps[state.index];if(!s)return;let points;if(state.view==='transport'){const y=scene.layerY(state.selected)+.21,from=s.direction===-1?1:0,to=1-from;points=[[scene.hosts[from],y,.94],[scene.hosts[from],.35,1.05],[0,.35,1.05],[scene.hosts[to],.35,1.05],[scene.hosts[to],y,.94]];if(s.drop)t=Math.min(t*.7,.5);if(s.delay)t=Math.min(t*.65,.64);}else{const target=stepPoint(s);const prev=state.index?stepPoint(steps[state.index-1]):target;points=[prev,target];}scene.packet={position:along(points,t),tag:s.tag,drop:s.drop};}
+function resetJourney(){state.index=-1;state.elapsed=0;scene.packet=null;scene.setSelected(state.selected);$('progress-fill').style.width='0';$('step-counter').textContent='准备开始';$('step-number').textContent='00';$('step-title').textContent=state.view==='transport'?'传输实验准备':'发送端准备数据';$('step-description').textContent=state.view==='transport'?'选择右侧实验，然后播放或单步查看报文和状态。':'点击播放，观察消息怎样穿过两台主机的网络层。';$('journey-title').textContent=state.view==='transport'?LABS[state.lab].title:'通信过程';$('journey-footnote').textContent=state.view==='transport'?LABS[state.lab].footnote:'教学示意：忽略DNS解析、ARP查询与TCP建连；中间设备为路由器。';$('next-step').disabled=false;renderPacket(state.view==='transport'?[]:[{text:state.scenario==='dns'?'DNS查询':'HTTP请求',kind:'payload'}]);updatePlayButton();updateLabState();scene.render();}
+function showStep(index){
+ const steps=currentSteps(),s=steps[index];state.index=index;
+ $('step-title').textContent=s.title;$('step-description').textContent=s.description;
+ $('step-number').textContent=(index+1).toString().padStart(2,'0');
+ $('step-counter').textContent=`${index+1} / ${steps.length} 步`;
+ $('progress-fill').style.width=`${(index+1)/steps.length*100}%`;
+ $('next-step').disabled=index===steps.length-1;
+ if(state.view==='transport'){
+  state.selected=s.layer;scene.setSelected(s.layer);renderLayers();updateLabState();
+ }else selectLayer(s.layer,false);
+ scene.setFocus(s);renderPacket(s.headers);
+ scene.packet={anchor:s,tag:s.tag,drop:s.drop};updatePlayButton();scene.render();
+}
 function updatePlayButton(){$('play').innerHTML=state.playing?'<span>Ⅱ</span> 暂停过程':state.index===currentSteps().length-1?'<span>↺</span> 重新播放':'<span>▶</span> 播放过程';}
 function pause(){state.playing=false;updatePlayButton();}
 function togglePlay(){if(state.playing){pause();return;}if(state.index===currentSteps().length-1)resetJourney();if(state.index<0)showStep(0);state.playing=true;state.last=performance.now();updatePlayButton();}
-function singleStep(){pause();if(state.index<currentSteps().length-1){showStep(state.index+1);animatePacket(1);}}
-function tick(time){const delta=Math.min(time-state.last,100);state.last=time;if(state.playing&&!document.hidden){state.elapsed+=delta*state.speed;const duration=state.view==='transport'?4200:3000;animatePacket(Math.min(state.elapsed/(duration*.7),1));if(state.elapsed>=duration){if(state.index<currentSteps().length-1)showStep(state.index+1);else{pause();$('step-counter').textContent=`完成 · ${currentSteps().length} 步`;}}}requestAnimationFrame(tick);}
+function singleStep(){pause();state.elapsed=0;if(state.index<currentSteps().length-1)showStep(state.index+1);}
+function tick(time){
+ const delta=Math.max(0,time-state.last);state.last=time;
+ if(state.playing&&!document.hidden){
+  const clock=advanceClock(state.elapsed,delta);state.elapsed=clock.elapsed;
+  for(let i=0;i<clock.steps&&state.playing;i++){
+   if(state.index<currentSteps().length-1)showStep(state.index+1);
+   else{pause();$('step-counter').textContent=`完成 · ${currentSteps().length} 步`;}
+  }
+ }
+ requestAnimationFrame(tick);
+}
+document.addEventListener('visibilitychange',()=>{state.last=performance.now();});
 
 document.querySelectorAll('[data-model]').forEach(b=>b.addEventListener('click',()=>setModel(b.dataset.model)));
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 $('open-learning').addEventListener('click',()=>{if(state.view==='protocols')setView('explore');pause();hub.jump('theory');});
 $('scenario').addEventListener('change',e=>{pause();state.scenario=e.target.value;resetJourney();});
 $('play').addEventListener('click',togglePlay);$('next-step').addEventListener('click',singleStep);
-$('restart').addEventListener('click',()=>{pause();resetJourney();});$('speed').addEventListener('change',e=>state.speed=Number(e.target.value));
+$('restart').addEventListener('click',()=>{pause();resetJourney();});
 $('rotate').addEventListener('click',e=>{scene.auto=!scene.auto;e.currentTarget.setAttribute('aria-pressed',String(scene.auto));});
 $('reset-camera').addEventListener('click',()=>{scene.reset();$('rotate').setAttribute('aria-pressed','false');});
 $('spread').addEventListener('click',e=>{scene.spread=!scene.spread;e.currentTarget.setAttribute('aria-pressed',String(scene.spread));e.currentTarget.querySelector('span').textContent=scene.spread?'分层':'紧凑';});
