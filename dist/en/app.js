@@ -1,6 +1,6 @@
 import {OSI,TCPIP,PROTOCOLS,LABS} from './content.js';
 import {NetworkScene} from './scene.js';
-import {buildJourney,buildTransportJourney} from './flows.js';
+import {buildJourney,buildTransportJourney,packetChanges} from './flows.js';
 import {advanceClock} from './playback.js';
 import {LearningHub} from './learning.js';
 import {ProtocolAtlas} from './protocols.js';
@@ -43,13 +43,29 @@ function renderInspector(){if(state.view==='transport')renderTransport();else in
 
 function selectLayer(index,user=false){state.selected=index;scene.setSelected(index);hub.setLayer(layers()[index].id);renderLayers();if(user&&state.view!=='explore'){setView('explore');return;}if(user){pause();resetJourney();}if(state.view==='explore')inspectorLayer();if(user&&matchMedia('(max-width:640px)').matches){document.querySelector('.inspector').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'start'});}}
 function setModel(model){pause();state.model=model;protocolAtlas.setModel(model);state.selected=0;scene.packet=null;scene.setLayers(layers());scene.setSelected(0);document.querySelectorAll('[data-model]').forEach(b=>b.classList.toggle('active',b.dataset.model===model));$('model-caption').textContent=model==='osi'?'Open Systems Interconnection reference model':'Internet protocol suite';$('model-note').textContent=model==='osi'?'OSI separates communication functions into seven layers; the blocks show their positions in the stack.':'TCP/IP uses application, transport, internet and network interface layers. These broadly correspond to OSI functions; protocol classification also depends on actual carriage.';$('scene-mode').textContent=model==='osi'?'OSI / 7 LAYERS':'TCP/IP / 4 LAYERS';if(state.view==='transport'){state.selected=layers().findIndex(l=>l.id.includes('transport'));scene.setSelected(state.selected);}hub.setLayer(layers()[state.selected].id);renderLayers();renderInspector();resetJourney();}
-function setView(view){pause();state.view=view;scene.packet=null;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('explore-screen').hidden=view==='protocols';$('protocol-screen').hidden=view!=='protocols';if(view==='protocols'){protocolAtlas.setModel(state.model);window.scrollTo({top:0,behavior:'instant'});return;}scene.resize();if(view==='transport'){state.selected=layers().findIndex(l=>l.id.includes('transport'));scene.setSelected(state.selected);renderLayers();}$('scene-title').textContent=view==='transport'?LABS[state.lab].title:'Encapsulation and hop-by-hop forwarding';$('scene-subtitle').textContent=view==='transport'?LABS[state.lab].subtitle:'Encapsulate down the sender stack · Decapsulate up the receiver stack';$('scenario').parentElement.hidden=view==='transport';hub.setLayer(layers()[state.selected].id);renderInspector();resetJourney();}
+function setView(view){pause();state.view=view;scene.packet=null;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view||(view==='transport'&&b.dataset.view==='explore')));$('explore-screen').hidden=view==='protocols';$('protocol-screen').hidden=view!=='protocols';if(view==='protocols'){protocolAtlas.setModel(state.model);window.scrollTo({top:0,behavior:'instant'});return;}scene.resize();if(view==='transport'){state.selected=layers().findIndex(l=>l.id.includes('transport'));scene.setSelected(state.selected);renderLayers();}$('scene-title').textContent=view==='transport'?LABS[state.lab].title:'Encapsulation and hop-by-hop forwarding';$('scene-subtitle').textContent=view==='transport'?LABS[state.lab].subtitle:'Encapsulate down the sender stack · Decapsulate up the receiver stack';$('scenario').parentElement.hidden=view==='transport';hub.setLayer(layers()[state.selected].id);renderInspector();resetJourney();}
 function setLab(lab){state.lab=lab;setView('transport');}
 
 
 const currentSteps=()=>state.view==='transport'?buildTransportJourney(layers(),LABS[state.lab],state.lab):buildJourney(layers(),state.scenario);
-function renderPacket(headers){$('packet-structure').innerHTML=headers.map(h=>`<span class="packet-field ${h.kind}">${escape(h.text)}</span>`).join('');}
-function resetJourney(){state.index=-1;state.elapsed=0;scene.packet=null;scene.setSelected(state.selected);$('progress-fill').style.width='0';$('step-counter').textContent='Ready to start';$('step-number').textContent='00';$('step-title').textContent=state.view==='transport'?'Transport lab ready':'Sender prepares data';$('step-description').textContent=state.view==='transport'?'Choose a lab on the right, then play or step through packets and state.':'Press Play to watch a message pass through both host stacks.';$('journey-title').textContent=state.view==='transport'?LABS[state.lab].title:'Communication flow';$('journey-footnote').textContent=state.view==='transport'?LABS[state.lab].footnote:'Teaching model: DNS lookup, ARP and TCP establishment are omitted; the intermediate device is a router.';$('next-step').disabled=false;renderPacket(state.view==='transport'?[]:[{text:state.scenario==='dns'?'DNS query':'HTTP request',kind:'payload'}]);updatePlayButton();updateLabState();scene.render();}
+function renderPacket(headers,target='packet-structure'){
+ const labels={added:'+ Added',removed:'− Removed',updated:'↻ Updated'};
+ $(target).innerHTML=headers.map(h=>`<span class="packet-field ${h.kind} ${h.change?'change-'+h.change:''}">${h.change?`<b class="field-change">${labels[h.change]}</b>`:''}${escape(h.text)}</span>`).join('');
+}
+function hidePacketChanges(){
+ $('packet-transition').hidden=true;$('packet-after-label').hidden=true;$('scene-change').hidden=true;
+ $('packet-changes').innerHTML='';$('packet-before').innerHTML='';$('scene-change').textContent='';
+}
+function renderPacketChanges(before,step){
+ const delta=packetChanges(before,step,layers());
+ $('scene-change').textContent=`This step: ${delta.summary}`;$('scene-change').hidden=false;
+ $('packet-transition').hidden=false;$('packet-after-label').hidden=false;
+ $('packet-changes').innerHTML=delta.changes.length?delta.changes.map(c=>`<li class="change-${c.action}">${escape(c.detail)}</li>`).join(''):`<li>${escape(delta.summary)}</li>`;
+ renderPacket(delta.before,'packet-before');
+ if(!delta.before.length)$('packet-before').innerHTML='<span class="packet-empty">Application data has not been generated</span>';
+ renderPacket(delta.after);
+}
+function resetJourney(){state.index=-1;state.elapsed=0;scene.packet=null;scene.setSelected(state.selected);hidePacketChanges();$('progress-fill').style.width='0';$('step-counter').textContent='Ready to start';$('step-number').textContent='00';$('step-title').textContent=state.view==='transport'?'Transport lab ready':'Sender prepares data';$('step-description').textContent=state.view==='transport'?'Choose a lab on the right, then play or step through packets and state.':'Press Play to watch a message pass through both host stacks.';$('journey-title').textContent=state.view==='transport'?LABS[state.lab].title:'Communication flow';$('journey-footnote').textContent=state.view==='transport'?LABS[state.lab].footnote:'Teaching model: DNS lookup, ARP and TCP establishment are omitted; the intermediate device is a router.';$('next-step').disabled=false;renderPacket(state.view==='transport'?[]:[{text:state.scenario==='dns'?'DNS query':'HTTP request',kind:'payload'}]);updatePlayButton();updateLabState();scene.render();}
 function showStep(index){
  const steps=currentSteps(),s=steps[index];state.index=index;
  $('step-title').textContent=s.title;$('step-description').textContent=s.description;
@@ -60,7 +76,8 @@ function showStep(index){
  if(state.view==='transport'){
   state.selected=s.layer;scene.setSelected(s.layer);renderLayers();updateLabState();
  }else selectLayer(s.layer,false);
- scene.setFocus(s);renderPacket(s.headers);
+ scene.setFocus(s);
+ if(state.view==='transport'){hidePacketChanges();renderPacket(s.headers);}else renderPacketChanges(index?steps[index-1].headers:[],s);
  scene.packet={anchor:s,tag:s.tag,drop:s.drop};updatePlayButton();scene.render();
 }
 function updatePlayButton(){$('play').innerHTML=state.playing?'<span>Ⅱ</span> Pause':state.index===currentSteps().length-1?'<span>↺</span> Replay':'<span>▶</span> Play';}

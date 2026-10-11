@@ -37,10 +37,14 @@ for(const [dir,lang,current,target] of [['dist/','zh-CN','zh','./en/'],['dist/en
 const zhCalc=await import('../dist/calculators.js'),enCalc=await import('../dist/en/calculators.js');
 for(const [fn,args] of [['subnet',['192.168.10.130',26]],['tcpAck',[1001,500,true,true]],['delays',[1500,100,1000,200000000]],['mss',[1500,6,20]],['fragment',[4000,1500,20]]])compare(zhCalc[fn](...args),enCalc[fn](...args),fn);
 assert.throws(()=>enCalc.subnet('999.1.1.1',24),/Address octet must be within/);
-const {buildJourney}=await import('../dist/en/flows.js');
+const {buildJourney,packetChanges}=await import('../dist/en/flows.js');
 const {OSI,TCPIP}=await import('../dist/en/content.js');
 for(const layers of [OSI,TCPIP])for(const scenario of ['http','dns']){
  const steps=buildJourney(layers,scenario);
+ for(const [index,step] of steps.entries()){
+  const delta=packetChanges(index?steps[index-1].headers:[],step,layers);
+  assert.ok(!han.test(JSON.stringify(delta)),'Packet-change summaries and comparisons must be fully translated');
+ }
  assert.equal(steps.length,layers.length*2+2);
  assert.ok(!han.test(JSON.stringify(steps)));
  assert.equal(steps.find(s=>s.router).headers.find(h=>h.kind==='network').text,'IP header · TTL 63');

@@ -103,6 +103,39 @@ function packetTag(headers, physical = false) {
   return headers.find(h => h.kind === 'payload').text;
 }
 
+// Compare actual packet fields so the explanation and rendered structure agree.
+export function packetChanges(before, step, layers) {
+  const key = h => h.kind === 'link' && h.text === 'FCS' ? 'fcs' : h.kind;
+  const name = h => h.kind === 'transport' ? (h.text.startsWith('UDP') ? 'UDP header' : 'TCP header')
+    : h.kind === 'network' ? 'IPv4 header' : h.kind === 'link' ? (h.text === 'FCS' ? 'FCS trailer' : 'Ethernet header') : 'Application data';
+  const previous = new Map(before.map(h => [key(h), h]));
+  const current = new Map(step.headers.map(h => [key(h), h]));
+  const changes = [];
+  for (const h of before) {
+    const next = current.get(key(h));
+    if (!next) changes.push({key: key(h), action: 'removed', title: `Remove ${name(h)}`, detail: `Remove ${name(h)}：${h.text}`});
+    else if (next.text !== h.text) {
+      const ttl = h.kind === 'network' ? `（${h.text.match(/TTL \d+/)[0]} → ${next.text.match(/TTL \d+/)[0]}）` : '';
+      changes.push({key: key(h), action: 'updated', title: `Update ${name(h)}${ttl}`, detail: `Update ${name(h)}：${h.text} → ${next.text}${h.kind === 'network' ? '; recalculate the IPv4 header checksum' : ''}`});
+    }
+  }
+  for (const h of step.headers) if (!previous.has(key(h))) changes.push({key: key(h), action: 'added', title: `Add ${name(h)}`, detail: `Add ${name(h)}：${h.text}`});
+  let summary = changes.map(c => c.title).join('；');
+  if (!summary) {
+    const layer = layers[step.layer].id;
+    summary = layer === 'physical' ? (step.host === 0 ? 'Frame → bits/signals; no header is added' : 'Signals → bits/frame; no header is added')
+      : layer === 'presentation' ? 'Encoding and formatting; no separate header is added'
+      : layer === 'session' ? 'Session-state handling; no separate header is added'
+      : layer === 'application' || layer === 'tcp-application' ? 'Recover application data and deliver it to the application'
+      : 'Headers remain unchanged';
+  }
+  const annotate = (headers, old) => headers.map(h => {
+    const change = changes.find(c => c.key === key(h));
+    return {...h, change: change && (old ? change.action !== 'added' : change.action !== 'removed') ? change.action : ''};
+  });
+  return {summary, changes, before: annotate(before, true), after: annotate(step.headers, false)};
+}
+
 // Use the model's actual layers for every lab message, in either direction.
 export function buildTransportJourney(ls, lab, key) {
   const transport = ls.findIndex(l => l.id.includes('transport'));

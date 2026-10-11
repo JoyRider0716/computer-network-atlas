@@ -63,7 +63,8 @@ assert.ok(el('study-body').textContent.includes(text('网页访问','web visit')
 click('[data-model="tcpip"]');assert.equal(el('layer-list').querySelectorAll('button').length,4);
 assert.ok(el('study-body').textContent.includes(text('字符、字节','Characters, bytes')));
 click('[data-layer="3"]');assert.ok(el('study-body').textContent.includes(text('发送时延','Transmission')));
-click('[data-view="transport"]');assert.ok(el('study-context').textContent.includes(text('传输层','Transport layer')));
+assert.equal(doc.querySelectorAll('[data-view="transport"]').length,0);
+click('[data-layer="1"]');click('#go-lab');assert.ok(el('study-context').textContent.includes(text('传输层','Transport layer')));
 const {OSI,TCPIP,LABS}=await import(siteBase+'content.js');
 const {buildTransportJourney}=await import(siteBase+'flows.js');
 for(const _ of buildTransportJourney(TCPIP,LABS.handshake,'handshake'))el('next-step').click();assert.ok(el('lab-state').textContent.includes('ESTABLISHED'));
@@ -109,6 +110,8 @@ for(const model of ['osi','tcpip']){
  frame(started+999);assert.equal(el('step-number').textContent,'01');
  assert.deepEqual(liveScene.packetPosition(),firstPosition,'Packet must hold at the layer until the next second');
  frame(started+1000);assert.equal(el('step-number').textContent,'02');
+ assert.equal(el('packet-transition').hidden,false);assert.equal(el('scene-change').hidden,false);
+ assert.ok(el('scene-change').textContent.includes(model==='osi'?text('不添加独立首部','no separate header'):text('新增UDP首部','Add UDP header')));
  assert.equal(liveScene.packet.anchor.layer,1);
  assert.equal(el('packet-label').textContent,liveScene.packet.tag);
  assert.equal(doc.querySelectorAll('.layer-label').filter(l=>l.className.includes('active')).length,1);
@@ -121,7 +124,9 @@ for(const model of ['osi','tcpip']){
  el('play').click();frame(clockTime+999);assert.equal(el('step-number').textContent,'03');
  frame(clockTime+1);assert.equal(el('step-number').textContent,'04');
  assert.ok(el('packet-label').textContent.includes(model==='osi'?'UDP':text('以太网帧','Ethernet frame')));
+ assert.ok(el('packet-structure').querySelectorAll('.change-added').some(h=>h.textContent.includes(model==='osi'?'UDP':'FCS')));
  el('restart').click();assert.equal(el('packet-label').hidden,true);
+ assert.equal(el('packet-transition').hidden,true);assert.equal(el('scene-change').hidden,true);
  assert.equal(doc.querySelector('.packet-connector').style.display,'none');
 }
 el('help').click();assert.equal(el('help-dialog').open,true);doc.querySelector('.dialog-close').click();assert.equal(el('help-dialog').open,false);

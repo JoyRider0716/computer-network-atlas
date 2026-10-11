@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {OSI,TCPIP,LABS} from '../dist/content.js';
-import {buildJourney,buildTransportJourney} from '../dist/flows.js';
+import {buildJourney,buildTransportJourney,packetChanges} from '../dist/flows.js';
 import {advanceClock,STEP_INTERVAL} from '../dist/playback.js';
 import {NetworkScene} from '../dist/scene.js';
 
@@ -14,6 +14,21 @@ for(const layers of [OSI,TCPIP]){
  const network=layers.findIndex(l=>l.id==='network'||l.id==='internet');
  for(const scenario of ['http','dns']){
   const steps=buildJourney(layers,scenario);
+  const changes=steps.map((s,i)=>packetChanges(i?steps[i-1].headers:[],s,layers));
+  assert.deepEqual(changes[transport].changes.map(c=>[c.key,c.action]),[['transport','added']]);
+  assert.deepEqual(changes[network].changes.map(c=>[c.key,c.action]),[['network','added']]);
+  const routerIndex=steps.findIndex(s=>s.router),bridgeIndex=steps.findIndex(s=>s.bridge);
+  assert.deepEqual(changes[routerIndex].changes.map(c=>[c.key,c.action]),[['link','removed'],['network','updated'],['fcs','removed']]);
+  assert.ok(changes[routerIndex].summary.includes('TTL 64 → TTL 63'));
+  assert.deepEqual(changes[bridgeIndex].changes.map(c=>[c.key,c.action]),[['link','added'],['fcs','added']]);
+  assert.ok(changes[bridgeIndex].after.filter(h=>h.change==='added').some(h=>h.text==='FCS'));
+  const receiveTransport=steps.findIndex(s=>s.host===1&&!s.bridge&&s.layer===transport);
+  assert.deepEqual(changes[receiveTransport].changes.map(c=>[c.key,c.action]),[['transport','removed']]);
+  assert.equal(changes.at(-1).after.length,1);
+  if(layers===OSI){
+   for(const index of [1,2]){assert.equal(changes[index].changes.length,0);assert.ok(changes[index].summary.includes('不添加独立首部'));}
+   assert.ok(changes[layers.length-1].summary.includes('帧 → 比特/信号'));
+  }
   assert.equal(steps[transport].tag,scenario==='dns'?'UDP数据报':'TCP报文段');
   const receivedLink=steps.find(s=>s.host===1&&!s.bridge&&['datalink','interface'].includes(layers[s.layer].id));
   assert.equal(receivedLink.tag,'IP分组','A removed Ethernet header must not retain a frame label');

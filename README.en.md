@@ -18,9 +18,9 @@ python -m http.server 8000 --directory dist
 
 Open <http://localhost:8000> for Chinese or <http://localhost:8000/en/> for English. Switch languages in the header. On Windows, use `py` in place of `python`. Access the site over HTTP so the browser can load ES modules.
 
-- **Explore layers**: switch models and select a layer or 3D block. Drag to rotate and scroll to zoom. Play or step through communication below the model.
+- **Explore layers**: switch models and select a layer or 3D block. Drag to rotate and scroll to zoom. Advance once per second and compare packet structures before and after adding or removing headers and updating TTL.
 - **Protocol guide**: choose entries by layer and select diagram arrows or step buttons. Relationship nodes open related entries.
-- **TCP / UDP labs**: select a handshake, connection closing or UDP example to inspect packets and state changes.
+- **Transport labs**: open the lab from the transport layer's communication-process details, then select a handshake, connection closing or UDP example to inspect packets and state changes.
 - **Learn more**: read principles, inspect packet fields, use calculators and explore troubleshooting cases.
 
 After changing Chinese text, update `locales/en.json` and regenerate English assets:

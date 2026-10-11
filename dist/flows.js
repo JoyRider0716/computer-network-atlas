@@ -103,6 +103,39 @@ function packetTag(headers, physical = false) {
   return headers.find(h => h.kind === 'payload').text;
 }
 
+// Compare actual packet fields so the explanation and rendered structure agree.
+export function packetChanges(before, step, layers) {
+  const key = h => h.kind === 'link' && h.text === 'FCS' ? 'fcs' : h.kind;
+  const name = h => h.kind === 'transport' ? (h.text.startsWith('UDP') ? 'UDP首部' : 'TCP首部')
+    : h.kind === 'network' ? 'IPv4首部' : h.kind === 'link' ? (h.text === 'FCS' ? 'FCS帧尾' : '以太网帧首部') : '应用数据';
+  const previous = new Map(before.map(h => [key(h), h]));
+  const current = new Map(step.headers.map(h => [key(h), h]));
+  const changes = [];
+  for (const h of before) {
+    const next = current.get(key(h));
+    if (!next) changes.push({key: key(h), action: 'removed', title: `移除${name(h)}`, detail: `移除${name(h)}：${h.text}`});
+    else if (next.text !== h.text) {
+      const ttl = h.kind === 'network' ? `（${h.text.match(/TTL \d+/)[0]} → ${next.text.match(/TTL \d+/)[0]}）` : '';
+      changes.push({key: key(h), action: 'updated', title: `更新${name(h)}${ttl}`, detail: `更新${name(h)}：${h.text} → ${next.text}${h.kind === 'network' ? '；重新计算IPv4首部校验和' : ''}`});
+    }
+  }
+  for (const h of step.headers) if (!previous.has(key(h))) changes.push({key: key(h), action: 'added', title: `新增${name(h)}`, detail: `新增${name(h)}：${h.text}`});
+  let summary = changes.map(c => c.title).join('；');
+  if (!summary) {
+    const layer = layers[step.layer].id;
+    summary = layer === 'physical' ? (step.host === 0 ? '帧 → 比特/信号；不添加首部' : '信号 → 比特/帧；不添加首部')
+      : layer === 'presentation' ? '编码与格式处理；不添加独立首部'
+      : layer === 'session' ? '会话状态处理；不添加独立首部'
+      : layer === 'application' || layer === 'tcp-application' ? '还原应用数据并交付应用'
+      : '首部保持不变';
+  }
+  const annotate = (headers, old) => headers.map(h => {
+    const change = changes.find(c => c.key === key(h));
+    return {...h, change: change && (old ? change.action !== 'added' : change.action !== 'removed') ? change.action : ''};
+  });
+  return {summary, changes, before: annotate(before, true), after: annotate(step.headers, false)};
+}
+
 // Use the model's actual layers for every lab message, in either direction.
 export function buildTransportJourney(ls, lab, key) {
   const transport = ls.findIndex(l => l.id.includes('transport'));

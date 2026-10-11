@@ -15,7 +15,7 @@
 <body>
   <header class="topbar">
     <a class="brand" href="./" aria-label="Network Atlas home"><span class="brand-symbol"><i></i><i></i><i></i></span><span>Network Atlas<small>3D NETWORK LEARNING</small></span></a>
-    <nav class="primary-nav" aria-label="Learning views"><button class="active" data-view="explore">Explore layers</button><button data-view="protocols">Protocol guide</button><button data-view="transport">TCP / UDP labs</button><button id="open-learning">Learn more</button></nav>
+    <nav class="primary-nav" aria-label="Learning views"><button class="active" data-view="explore">Explore layers</button><button data-view="protocols">Protocol guide</button><button id="open-learning">Learn more</button></nav>
     <div class="header-actions"><nav class="language-switch" aria-label="Website language"><a data-language="zh" href="../" lang="zh-CN">中文</a><a data-language="en" href="./" lang="en" aria-current="page">English</a></nav><a class="source-download-link" href="../network-atlas-source.zip" download>Download source ↓</a><button class="quiet help-button" id="help" aria-label="Open user guide">User guide <span>↗</span></button></div>
   </header>
   <main class="workspace" id="explore-screen">
@@ -29,7 +29,7 @@
     </aside>
     <section class="middle">
       <section class="scene" aria-label="Two-host 3D communication learning model">
-        <div class="scene-heading"><h2 id="scene-title">Encapsulation and hop-by-hop forwarding</h2><p id="scene-subtitle">Encapsulate down the sender stack · Decapsulate up the receiver stack</p></div>
+        <div class="scene-heading"><h2 id="scene-title">Encapsulation and hop-by-hop forwarding</h2><p id="scene-subtitle">Encapsulate down the sender stack · Decapsulate up the receiver stack</p><p class="scene-change" id="scene-change" hidden></p></div>
         <div class="scene-badge"><span class="status-dot"></span><span id="scene-mode">OSI / 7 LAYERS</span></div>
         <canvas id="scene-canvas" tabindex="0" aria-label="Rotatable two-host 3D model. Drag to rotate, scroll to zoom, or use the layer buttons on the left."></canvas>
         <div id="scene-labels" class="scene-labels"></div>
@@ -41,7 +41,11 @@
         <div class="journey-top"><div><span class="eyebrow" id="journey-eyebrow">02 / COMMUNICATION</span><h3 id="journey-title">Communication flow</h3></div><div class="journey-options"><label>Scenario<select id="scenario"><option value="http">HTTP / TCP encapsulation</option><option value="dns">DNS / UDP encapsulation</option></select></label><button class="quiet" id="restart" title="Restart">↺</button></div></div>
         <div class="playback"><button class="play-button" id="play"><span>▶</span> Play</button><button class="step-button" id="next-step">Next →</button><div class="play-progress"><span id="step-counter">Ready to start</span><div class="progress-track"><i id="progress-fill"></i></div></div><span id="speed">1 s / step</span></div>
         <div class="step-detail" aria-live="polite"><span class="step-number" id="step-number">00</span><div><h4 id="step-title">Sender prepares data</h4><p id="step-description">Press Play to watch a message pass through both host stacks.</p></div></div>
-        <div id="packet-structure" class="packet-structure"></div>
+        <section class="packet-transition" id="packet-transition" hidden aria-label="Changes in this step">
+          <h4>Changes in this step</h4><ul id="packet-changes" class="packet-changes"></ul>
+          <div class="packet-row"><span class="packet-row-label">Before</span><div id="packet-before" class="packet-structure"></div></div>
+        </section>
+        <div class="packet-row"><span class="packet-row-label" id="packet-after-label" hidden>After</span><div id="packet-structure" class="packet-structure"></div></div>
         <p class="journey-footnote" id="journey-footnote">Teaching model: DNS lookup, ARP and TCP establishment are omitted; the intermediate device is a router.</p>
       </section>
       <section class="learning-hub" id="learning-hub" aria-label="Computer network principles"></section>
@@ -49,7 +53,7 @@
     <aside class="inspector" aria-label="Network knowledge details"><div id="inspector-content"></div></aside>
   </main>
   <section id="protocol-screen" class="protocol-screen" hidden aria-label="Illustrated protocols by layer"></section>
-  <dialog id="help-dialog"><button class="dialog-close" aria-label="Close user guide">×</button><span class="eyebrow">User guide</span><h2>How to use</h2><p>Select a layer for definitions and protocols, play a communication sequence, or open a protocol workflow.</p><ol><li><b>Choose a model</b><span>Switch between seven-layer OSI and four-layer TCP/IP on the left.</span></li><li><b>Select a layer block</b><span>Both hosts highlight the same layer; definitions and protocols appear on the right.</span></li><li><b>Explore the concepts</b><span>Expand definitions, mechanisms, protocol details and common misconceptions.</span></li><li><b>Play communication</b><span>Play or step through encapsulation, routing and receiver decapsulation.</span></li><li><b>Open transport labs</b><span>Observe TCP establishment and closing, or examples of UDP loss and reordering.</span></li><li><b>Learn and calculate</b><span>Scroll to principles, packet fields and five network calculators.</span></li><li><b>Illustrated protocol guide</b><span>Open the protocol guide, choose an entry by layer and select diagram steps to read mechanisms, fields and relationships. Download the source from the header.</span></li></ol><p class="dialog-note">This is a teaching simulation; it creates no real TCP connections or network packets. Press Esc to close.</p></dialog>
+  <dialog id="help-dialog"><button class="dialog-close" aria-label="Close user guide">×</button><span class="eyebrow">User guide</span><h2>How to use</h2><p>Select a layer for definitions and protocols, play a communication sequence, or open a protocol workflow.</p><ol><li><b>Choose a model</b><span>Switch between seven-layer OSI and four-layer TCP/IP on the left.</span></li><li><b>Select a layer block</b><span>Both hosts highlight the same layer; definitions and protocols appear on the right.</span></li><li><b>Explore the concepts</b><span>Expand definitions, mechanisms, protocol details and common misconceptions.</span></li><li><b>Play communication</b><span>Play or step through encapsulation, routing and receiver decapsulation.</span></li><li><b>Open transport labs</b><span>Open the lab from the transport layer details to observe TCP connection setup and closing, or UDP loss and reordering.</span></li><li><b>Learn and calculate</b><span>Scroll to principles, packet fields and five network calculators.</span></li><li><b>Illustrated protocol guide</b><span>Open the protocol guide, choose an entry by layer and select diagram steps to read mechanisms, fields and relationships. Download the source from the header.</span></li></ol><p class="dialog-note">This is a teaching simulation; it creates no real TCP connections or network packets. Press Esc to close.</p></dialog>
   <script type="module" src="./app.js"></script>
 </body>
 </html>
